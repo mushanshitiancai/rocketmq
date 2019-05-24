@@ -542,8 +542,6 @@ public class CommitLog {
         // Back to Results
         AppendMessageResult result = null;
 
-        StoreStatsService storeStatsService = this.defaultMessageStore.getStoreStatsService();
-
         String topic = msg.getTopic();
         int queueId = msg.getQueueId();
 
@@ -635,7 +633,8 @@ public class CommitLog {
 
         PutMessageResult putMessageResult = new PutMessageResult(PutMessageStatus.PUT_OK, result);
 
-        // Statistics
+        // 统计数据
+        StoreStatsService storeStatsService = this.defaultMessageStore.getStoreStatsService();
         storeStatsService.getSinglePutMessageTopicTimesTotal(msg.getTopic()).incrementAndGet();
         storeStatsService.getSinglePutMessageTopicSizeTotal(topic).addAndGet(result.getWroteBytes());
 
@@ -646,9 +645,12 @@ public class CommitLog {
     }
 
     public void handleDiskFlush(AppendMessageResult result, PutMessageResult putMessageResult, MessageExt messageExt) {
-        // Synchronization flush
+        // 同步刷盘
         if (FlushDiskType.SYNC_FLUSH == this.defaultMessageStore.getMessageStoreConfig().getFlushDiskType()) {
             final GroupCommitService service = (GroupCommitService) this.flushCommitLogService;
+
+            // 如果生产者发的消息中指定isWaitStoreMsgOK==true，并且服务端设置同步刷盘，
+            // 则表示消息落盘后才返回OK
             if (messageExt.isWaitStoreMsgOK()) {
                 GroupCommitRequest request = new GroupCommitRequest(result.getWroteOffset() + result.getWroteBytes());
                 service.putRequest(request);
@@ -662,7 +664,7 @@ public class CommitLog {
                 service.wakeup();
             }
         }
-        // Asynchronous flush
+        // 异步刷盘
         else {
             if (!this.defaultMessageStore.getMessageStoreConfig().isTransientStorePoolEnable()) {
                 flushCommitLogService.wakeup();
@@ -1195,13 +1197,17 @@ public class CommitLog {
             final MessageExtBrokerInner msgInner) {
             // STORETIMESTAMP + STOREHOSTADDRESS + OFFSET <br>
 
-            // PHY OFFSET
+            // 计算逻辑偏移量
             long wroteOffset = fileFromOffset + byteBuffer.position();
 
+            // 将消息中的生产者的IP和端口信息取出，用于计算消息ID
             this.resetByteBuffer(hostHolder, 8);
-            String msgId = MessageDecoder.createMessageId(this.msgIdMemory, msgInner.getStoreHostBytes(hostHolder), wroteOffset);
+            ByteBuffer storeHostBytes = msgInner.getStoreHostBytes(hostHolder);
 
-            // Record ConsumeQueue information
+            // 计算消息ID，格式为生产者的4字节IP+4字节端口+8字节逻辑偏移量
+            String msgId = MessageDecoder.createMessageId(this.msgIdMemory, storeHostBytes, wroteOffset);
+
+            // 获取Queue的offset
             keyBuilder.setLength(0);
             keyBuilder.append(msgInner.getTopic());
             keyBuilder.append('-');
@@ -1255,7 +1261,9 @@ public class CommitLog {
                 return new AppendMessageResult(AppendMessageStatus.MESSAGE_SIZE_EXCEEDED);
             }
 
-            // Determines whether there is sufficient free space
+            // 判断当前日志文件的剩余空间是否能写入这个消息
+            // 如果剩余空间不够写入，则写入占位的假消息，
+            // 只写入TOTALSIZE和MAGICCODE，TOTALSIZE等于剩余空间大小
             if ((msgLen + END_FILE_MIN_BLANK_LENGTH) > maxBlank) {
                 this.resetByteBuffer(this.msgStoreItemMemory, maxBlank);
                 // 1 TOTALSIZE
@@ -1270,7 +1278,7 @@ public class CommitLog {
                     queueOffset, CommitLog.this.defaultMessageStore.now() - beginTimeMills);
             }
 
-            // Initialization of storage space
+            // 向消息内存缓冲区中写入消息数据
             this.resetByteBuffer(msgStoreItemMemory, msgLen);
             // 1 TOTALSIZE
             this.msgStoreItemMemory.putInt(msgLen);
@@ -1316,7 +1324,8 @@ public class CommitLog {
                 this.msgStoreItemMemory.put(propertiesData);
 
             final long beginTimeMills = CommitLog.this.defaultMessageStore.now();
-            // Write messages to the queue buffer
+
+            // 向日志缓冲区写入消息
             byteBuffer.put(this.msgStoreItemMemory.array(), 0, msgLen);
 
             AppendMessageResult result = new AppendMessageResult(AppendMessageStatus.PUT_OK, wroteOffset, msgLen, msgId,
