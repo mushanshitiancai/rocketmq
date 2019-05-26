@@ -64,10 +64,13 @@ public class CommitLog {
     protected final PutMessageLock putMessageLock;
 
     public CommitLog(final DefaultMessageStore defaultMessageStore) {
+        this.defaultMessageStore = defaultMessageStore;
+        
+        // 实例化MappedFileQueue
         this.mappedFileQueue = new MappedFileQueue(defaultMessageStore.getMessageStoreConfig().getStorePathCommitLog(),
             defaultMessageStore.getMessageStoreConfig().getMapedFileSizeCommitLog(), defaultMessageStore.getAllocateMappedFileService());
-        this.defaultMessageStore = defaultMessageStore;
-
+            
+        // 根据不同的刷盘策略，实例化不同的刷盘服务实现
         if (FlushDiskType.SYNC_FLUSH == defaultMessageStore.getMessageStoreConfig().getFlushDiskType()) {
             this.flushCommitLogService = new GroupCommitService();
         } else {
@@ -87,12 +90,20 @@ public class CommitLog {
 
     }
 
+    /**
+     * 加载MappedFile到MappedFileQueue 
+     */
     public boolean load() {
         boolean result = this.mappedFileQueue.load();
         log.info("load commit log " + (result ? "OK" : "Failed"));
         return result;
     }
 
+    /**
+     * 启动CommitLog相关的线程
+     * 1. 如果同步刷盘，开启GroupCommitService线程，如果是异步刷盘，开启FlushRealTimeService线程
+     * 2. 如果开启了transientStorePool，还需要开启CommitRealTimeService线程
+     */
     public void start() {
         this.flushCommitLogService.start();
 
@@ -578,6 +589,8 @@ public class CommitLog {
 
             // Here settings are stored timestamp, in order to ensure an orderly
             // global
+            // 设置消息的存储时间，因为有锁保护，所以一个实例上的存储时间是顺序的
+            // 这个时间最后会更新到MappedFileQueue和MappedFile中的storeTimestamp字段上
             msg.setStoreTimestamp(beginLockTimestamp);
 
             if (null == mappedFile || mappedFile.isFull()) {
@@ -652,15 +665,25 @@ public class CommitLog {
             // 如果生产者发的消息中指定isWaitStoreMsgOK==true，并且服务端设置同步刷盘，
             // 则表示消息落盘后才返回OK
             if (messageExt.isWaitStoreMsgOK()) {
+                
+                // 构造同步刷盘请求
                 GroupCommitRequest request = new GroupCommitRequest(result.getWroteOffset() + result.getWroteBytes());
+                
+                // 添加同步刷盘消息到刷盘线程
                 service.putRequest(request);
+                
+                // 阻塞等待同步刷盘结束，默认最长等待5秒钟
                 boolean flushOK = request.waitForFlush(this.defaultMessageStore.getMessageStoreConfig().getSyncFlushTimeout());
+                
+                // 如果同步刷盘失败，返回FLUSH_DISK_TIMEOUT
                 if (!flushOK) {
                     log.error("do groupcommit, wait for flush failed, topic: " + messageExt.getTopic() + " tags: " + messageExt.getTags()
                         + " client address: " + messageExt.getBornHostString());
                     putMessageResult.setPutMessageStatus(PutMessageStatus.FLUSH_DISK_TIMEOUT);
                 }
             } else {
+                // 如果服务端开启同步刷盘，但是客户端对于消息存储不关心(isWaitStoreMsgOK==false)
+                // 则用户直接返回，这里唤起同步刷盘线程进行刷盘，本质上也是异步刷盘了，但是每个消息都会进行异步刷盘
                 service.wakeup();
             }
         }
@@ -1041,6 +1064,7 @@ public class CommitLog {
     }
 
     public static class GroupCommitRequest {
+        // 刷盘点偏移量，也就是这次插入消息最后一个字节位置，是全局偏移量
         private final long nextOffset;
         private final CountDownLatch countDownLatch = new CountDownLatch(1);
         private volatile boolean flushOK = false;
@@ -1076,48 +1100,58 @@ public class CommitLog {
         private volatile List<GroupCommitRequest> requestsWrite = new ArrayList<GroupCommitRequest>();
         private volatile List<GroupCommitRequest> requestsRead = new ArrayList<GroupCommitRequest>();
 
+        /**
+         * 插入同步刷盘请求
+         */
         public synchronized void putRequest(final GroupCommitRequest request) {
+            // 因为putMessageLock不保护刷盘和HA的逻辑，
+            // 所以可能有多个线程添加刷盘请求，所以需要用锁保护
             synchronized (this.requestsWrite) {
+                System.out.println("this.requestsWrite.add(request);");
                 this.requestsWrite.add(request);
             }
+            // 如果线程处于等待状态，则将其唤醒
+            // 如果线程处于执行状态，则不会进行操作
             if (hasNotified.compareAndSet(false, true)) {
                 waitPoint.countDown(); // notify
             }
-        }
-
-        private void swapRequests() {
-            List<GroupCommitRequest> tmp = this.requestsWrite;
-            this.requestsWrite = this.requestsRead;
-            this.requestsRead = tmp;
         }
 
         private void doCommit() {
             synchronized (this.requestsRead) {
                 if (!this.requestsRead.isEmpty()) {
                     for (GroupCommitRequest req : this.requestsRead) {
-                        // There may be a message in the next file, so a maximum of
-                        // two times the flush
                         boolean flushOK = false;
+                        
+                        // 因为有可能消息写在后一个文件，而刷盘还只刷到上一个文件，
+                        // 所以有可能需要刷新上一个文件和当前这个文件，所以最多可能操作两次
                         for (int i = 0; i < 2 && !flushOK; i++) {
+                            // 判断当前全局刷盘点是否大于这个刷盘请求的全局刷盘点，如果大于说明已经完成了刷盘
                             flushOK = CommitLog.this.mappedFileQueue.getFlushedWhere() >= req.getNextOffset();
 
+                            // 如果未完成刷盘，需要进行刷盘
                             if (!flushOK) {
+                                // 调用MappedFileQueue的flush方法完成刷盘，并且不指定刷盘最少页面数，有数据就刷
                                 CommitLog.this.mappedFileQueue.flush(0);
                             }
                         }
 
+                        // 这个刷盘请求完成后，就通知对应的线程，让他尽快返回
                         req.wakeupCustomer(flushOK);
                     }
 
+                    // 刷盘后，记录Checkpoint
                     long storeTimestamp = CommitLog.this.mappedFileQueue.getStoreTimestamp();
                     if (storeTimestamp > 0) {
                         CommitLog.this.defaultMessageStore.getStoreCheckpoint().setPhysicMsgTimestamp(storeTimestamp);
                     }
 
+                    // 处理完这一批全部的刷盘任务后，清空列表
                     this.requestsRead.clear();
                 } else {
                     // Because of individual messages is set to not sync flush, it
                     // will come to this process
+                    // 如果消息没有设置
                     CommitLog.this.mappedFileQueue.flush(0);
                 }
             }
@@ -1128,7 +1162,13 @@ public class CommitLog {
 
             while (!this.isStopped()) {
                 try {
-                    this.waitForRunning(10);
+                    // 没执行一轮，尝试休息一下
+                    // TODO 网上有资料说是10ms同步刷盘一次，我觉得不是，这里的10没有特别所用
+                    // TODO 具体的执行情况是：
+                    //  1.如果没有消息，则10ms也会刷盘一次 
+                    //  2.如果有消息，则会唤醒进行刷盘，期间添加的任务，会在下一轮统一执行
+                    this.waitForRunning(1000000);
+                    // 执行commit操作
                     this.doCommit();
                 } catch (Exception e) {
                     CommitLog.log.warn(this.getServiceName() + " service has exception. ", e);
@@ -1152,9 +1192,19 @@ public class CommitLog {
             CommitLog.log.info(this.getServiceName() + " service end");
         }
 
+        /**
+         * 被唤醒时执行的操作
+         * 这里交换了requestsWrite和requestsRead两个列表
+         */
         @Override
         protected void onWaitEnd() {
             this.swapRequests();
+        }
+
+        private void swapRequests() {
+            List<GroupCommitRequest> tmp = this.requestsWrite;
+            this.requestsWrite = this.requestsRead;
+            this.requestsRead = tmp;
         }
 
         @Override
@@ -1197,7 +1247,7 @@ public class CommitLog {
             final MessageExtBrokerInner msgInner) {
             // STORETIMESTAMP + STOREHOSTADDRESS + OFFSET <br>
 
-            // 计算逻辑偏移量
+            // 计算全局偏移量
             long wroteOffset = fileFromOffset + byteBuffer.position();
 
             // 将消息中的生产者的IP和端口信息取出，用于计算消息ID
