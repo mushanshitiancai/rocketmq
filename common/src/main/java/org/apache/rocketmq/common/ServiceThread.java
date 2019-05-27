@@ -126,6 +126,11 @@ public abstract class ServiceThread implements Runnable {
         }
     }
 
+    /**
+     * 暂停线程执行，有两种情况会恢复线程执行：
+     * 1. 等待时间过期
+     * 2. 调用wakeup方法（CommitLog.GroupCommitService#putRequest包含了wakeup的逻辑）
+     */
     protected void waitForRunning(long interval) {
         if (hasNotified.compareAndSet(true, false)) {
             this.onWaitEnd();
@@ -145,6 +150,9 @@ public abstract class ServiceThread implements Runnable {
         }
     }
 
+    /**
+     * 被唤醒时的回调
+     */
     protected void onWaitEnd() {
     }
 

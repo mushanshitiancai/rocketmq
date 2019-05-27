@@ -48,8 +48,10 @@ public class TransientStorePool {
      */
     public void init() {
         for (int i = 0; i < poolSize; i++) {
+            // 申请堆外内存
             ByteBuffer byteBuffer = ByteBuffer.allocateDirect(fileSize);
 
+            // 调用mlock锁定堆外内存
             final long address = ((DirectBuffer) byteBuffer).address();
             Pointer pointer = new Pointer(address);
             LibC.INSTANCE.mlock(pointer, new NativeLong(fileSize));

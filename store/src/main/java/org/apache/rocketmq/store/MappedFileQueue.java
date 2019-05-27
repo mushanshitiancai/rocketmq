@@ -43,9 +43,11 @@ public class MappedFileQueue {
 
     private final AllocateMappedFileService allocateMappedFileService;
 
+    // 记录flush位置
     private long flushedWhere = 0;
+    // 记录commit位置
     private long committedWhere = 0;
-
+    // 落盘的最新消息的时间，用于记录Checkpoint
     private volatile long storeTimestamp = 0;
 
     public MappedFileQueue(final String storePath, int mappedFileSize,
@@ -426,12 +428,29 @@ public class MappedFileQueue {
         boolean result = true;
         MappedFile mappedFile = this.findMappedFileByOffset(this.flushedWhere, this.flushedWhere == 0);
         if (mappedFile != null) {
+            // 获取MappedFile的最后写入时间
             long tmpTimeStamp = mappedFile.getStoreTimestamp();
+            
+            // 调用MappedFile的flush方法
             int offset = mappedFile.flush(flushLeastPages);
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+
+            // 计算全局偏移量
             long where = mappedFile.getFileFromOffset() + offset;
+            
+            // TODO 啥意思
             result = where == this.flushedWhere;
+            
+            // 更新flush位置
             this.flushedWhere = where;
+            
+            // TODO 判断0是为什么
             if (0 == flushLeastPages) {
+                // 更新落盘上的最新消息的时间
                 this.storeTimestamp = tmpTimeStamp;
             }
         }

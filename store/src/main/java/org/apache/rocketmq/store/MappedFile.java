@@ -161,7 +161,10 @@ public class MappedFile extends ReferenceResource {
 
         try {
             this.fileChannel = new RandomAccessFile(this.file, "rw").getChannel();
+            
+            // TODO 这里一定会mmap，但是如果开启了transientStorePool，好像这个是没用的
             this.mappedByteBuffer = this.fileChannel.map(MapMode.READ_WRITE, 0, fileSize);
+            
             TOTAL_MAPPED_VIRTUAL_MEMORY.addAndGet(fileSize);
             TOTAL_MAPPED_FILES.incrementAndGet();
             ok = true;
@@ -216,6 +219,8 @@ public class MappedFile extends ReferenceResource {
                 return new AppendMessageResult(AppendMessageStatus.UNKNOWN_ERROR);
             }
             this.wrotePosition.addAndGet(result.getWroteBytes());
+            
+            // 更新最后写入时间
             this.storeTimestamp = result.getStoreTimestamp();
             return result;
         }
@@ -268,25 +273,33 @@ public class MappedFile extends ReferenceResource {
     }
 
     /**
-     * @return The current flushed position
+     * MappedFile刷盘操作
+     * @return 返回最新flush的位置，以当前文件为起始位置
      */
     public int flush(final int flushLeastPages) {
+        // 判断需要flush的页面数是否达标（个数大于flushLeastPages）
         if (this.isAbleToFlush(flushLeastPages)) {
+            // 增加引用计数 TODO 干嘛用的
             if (this.hold()) {
+                // 当前数据的位置
                 int value = getReadPosition();
 
                 try {
-                    //We only append data to fileChannel or mappedByteBuffer, never both.
+                    // 如果开启了暂存池，则是使用FileChannel写入，调用FileChannel的foce方法
                     if (writeBuffer != null || this.fileChannel.position() != 0) {
                         this.fileChannel.force(false);
                     } else {
+                        // 没有开启暂存池，调用MappedByteBuffer的force方法
                         this.mappedByteBuffer.force();
                     }
                 } catch (Throwable e) {
                     log.error("Error occurred when force data to disk.", e);
                 }
 
+                // 更新刷盘位置到当前数据位置
                 this.flushedPosition.set(value);
+                
+                // 减少引用 TODO 干嘛用的
                 this.release();
             } else {
                 log.warn("in flush, hold failed, flush offset = " + this.flushedPosition.get());
@@ -296,9 +309,15 @@ public class MappedFile extends ReferenceResource {
         return this.getFlushedPosition();
     }
 
+    /**
+     * 如果开启transientStorePool，则需要定期从暂存池中提交数据到
+     * 
+     * @param commitLeastPages 最少要commit的页面数
+     */
     public int commit(final int commitLeastPages) {
+        // 如果writeBuffer为null，表示没有开启transientStorePool机制，
+        // 没有开启暂存池，也就不需要维护committedPosition，直接认为wrotePosition是committedPosition
         if (writeBuffer == null) {
-            //no need to commit data to file channel, so just regard wrotePosition as committedPosition.
             return this.wrotePosition.get();
         }
         if (this.isAbleToCommit(commitLeastPages)) {
@@ -328,6 +347,8 @@ public class MappedFile extends ReferenceResource {
                 ByteBuffer byteBuffer = writeBuffer.slice();
                 byteBuffer.position(lastCommittedPosition);
                 byteBuffer.limit(writePos);
+                
+                // TODO 为什么这里使用fileChannel的write，但是构造函数中一定会进行mmap
                 this.fileChannel.position(lastCommittedPosition);
                 this.fileChannel.write(byteBuffer);
                 this.committedPosition.set(writePos);
@@ -337,6 +358,9 @@ public class MappedFile extends ReferenceResource {
         }
     }
 
+    /**
+     * 如果指定了flush的最少页面数，则如果需要flush的页面数不达标在，则返回false
+     */
     private boolean isAbleToFlush(final int flushLeastPages) {
         int flush = this.flushedPosition.get();
         int write = getReadPosition();
@@ -352,6 +376,9 @@ public class MappedFile extends ReferenceResource {
         return write > flush;
     }
 
+    /**
+     * 如果指定了commit的最少页面数，则如果需要commit的页面数不达标在，则返回false
+     */
     protected boolean isAbleToCommit(final int commitLeastPages) {
         int flush = this.committedPosition.get();
         int write = this.wrotePosition.get();
@@ -474,6 +501,7 @@ public class MappedFile extends ReferenceResource {
     }
 
     /**
+     * 返回最大的position
      * @return The max position which have valid data
      */
     public int getReadPosition() {
@@ -484,13 +512,22 @@ public class MappedFile extends ReferenceResource {
         this.committedPosition.set(pos);
     }
 
+    /**
+     * 预热MappedFile
+     * TODO 官方有关于这个函数的重构说明：https://github.com/apache/rocketmq/issues/522
+     */
     public void warmMappedFile(FlushDiskType type, int pages) {
         long beginTime = System.currentTimeMillis();
         ByteBuffer byteBuffer = this.mappedByteBuffer.slice();
         int flush = 0;
         long time = System.currentTimeMillis();
+        
+        // 一个一个页的预热，预热的步骤是：
+        // 1. 
         for (int i = 0, j = 0; i < this.fileSize; i += MappedFile.OS_PAGE_SIZE, j++) {
+            
             byteBuffer.put(i, (byte) 0);
+            
             // force flush when flush disk type is sync
             if (type == FlushDiskType.SYNC_FLUSH) {
                 if ((i / OS_PAGE_SIZE) - (flush / OS_PAGE_SIZE) >= pages) {
@@ -499,7 +536,7 @@ public class MappedFile extends ReferenceResource {
                 }
             }
 
-            // prevent gc
+            // prevent gc 阻止GC？
             if (j % 1000 == 0) {
                 log.info("j={}, costTime={}", j, System.currentTimeMillis() - time);
                 time = System.currentTimeMillis();
@@ -520,6 +557,7 @@ public class MappedFile extends ReferenceResource {
         log.info("mapped file warm-up done. mappedFile={}, costTime={}", this.getFileName(),
             System.currentTimeMillis() - beginTime);
 
+        // 调用mlock锁定内存
         this.mlock();
     }
 
