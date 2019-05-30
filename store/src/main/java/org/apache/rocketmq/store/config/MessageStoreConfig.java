@@ -44,11 +44,13 @@ public class MessageStoreConfig {
 
     // CommitLog flush interval
     // flush data to disk
+    // 定时刷盘间隔，默认500ms。开启异步刷盘+无暂存池+定时刷盘时有效，即flushCommitLogTimed = true
     @ImportantField
     private int flushIntervalCommitLog = 500;
 
     // Only used if TransientStorePool enabled
     // flush data to FileChannel
+    // 定时commit时间，默认200ms。开启异步刷盘+暂存池时有效
     @ImportantField
     private int commitIntervalCommitLog = 200;
 
@@ -59,6 +61,7 @@ public class MessageStoreConfig {
     private boolean useReentrantLockWhenPutMessage = false;
 
     // Whether schedule flush,default is real-time
+    // 指定是定时刷盘还是实时刷盘，默认是实时刷盘
     @ImportantField
     private boolean flushCommitLogTimed = false;
     // ConsumeQueue flush interval
@@ -87,8 +90,10 @@ public class MessageStoreConfig {
     // This check adds some overhead,so it may be disabled in cases seeking extreme performance.
     private boolean checkCRCOnRecover = true;
     // How many pages are to be flushed when flush CommitLog
+    // 刷新CommitLog时，至少的刷盘页面数。异步刷盘（无暂存区）模式下有效。默认至少4个页面。
     private int flushCommitLogLeastPages = 4;
     // How many pages are to be committed when commit data to file
+    // 提交CommitLog时，至少的提交页面数。异步刷盘（有暂存区）模式下有效。默认至少4个页面。
     private int commitCommitLogLeastPages = 4;
     // Flush page size when the disk in warming state
     private int flushLeastPagesWhenWarmMapedFile = 1024 / 4 * 16;
@@ -611,6 +616,7 @@ public class MessageStoreConfig {
     /**
      * Enable transient commitLog store pool only if transientStorePoolEnable is true and the FlushDiskType is
      * ASYNC_FLUSH
+     * 暂存池只有异步刷盘，并且不是slave时才有效
      *
      * @return <tt>true</tt> or <tt>false</tt>
      */

@@ -310,7 +310,7 @@ public class MappedFile extends ReferenceResource {
     }
 
     /**
-     * 如果开启transientStorePool，则需要定期从暂存池中提交数据到
+     * 如果开启transientStorePool，则需要定期从暂存池中提交数据到fileChannel
      * 
      * @param commitLeastPages 最少要commit的页面数
      */
