@@ -70,6 +70,7 @@ public abstract class NettyRemotingAbstract {
 
     /**
      * This map caches all on-going requests.
+     * 
      */
     protected final ConcurrentMap<Integer /* opaque */, ResponseFuture> responseTable =
         new ConcurrentHashMap<Integer, ResponseFuture>(256);
@@ -136,6 +137,9 @@ public abstract class NettyRemotingAbstract {
 
     /**
      * Entry of incoming command processing.
+     * 处理输入报文的的逻辑入口。可能有有两种类型的输入报文
+     * 1. 远端实例的查询报文
+     * 2. 远端实例对先前发起的请求报文的响应报文
      *
      * <p>
      * <strong>Note:</strong>
@@ -154,9 +158,11 @@ public abstract class NettyRemotingAbstract {
         final RemotingCommand cmd = msg;
         if (cmd != null) {
             switch (cmd.getType()) {
+                // 1. 远端实例的查询报文
                 case REQUEST_COMMAND:
                     processRequestCommand(ctx, cmd);
                     break;
+                // 2. 远端实例对先前发起的请求报文的响应报文
                 case RESPONSE_COMMAND:
                     processResponseCommand(ctx, cmd);
                     break;
@@ -275,11 +281,14 @@ public abstract class NettyRemotingAbstract {
      * @param cmd response command instance.
      */
     public void processResponseCommand(ChannelHandlerContext ctx, RemotingCommand cmd) {
+        // 通过报文的id获取等待响应的responseFuture
         final int opaque = cmd.getOpaque();
         final ResponseFuture responseFuture = responseTable.get(opaque);
         if (responseFuture != null) {
+            
+            // 设置响应报文
             responseFuture.setResponseCommand(cmd);
-
+            // 从等待列表中移除responseFuture
             responseTable.remove(opaque);
 
             if (responseFuture.getInvokeCallback() != null) {
@@ -406,7 +415,8 @@ public abstract class NettyRemotingAbstract {
             channel.writeAndFlush(request).addListener(new ChannelFutureListener() {
                 @Override
                 public void operationComplete(ChannelFuture f) throws Exception {
-                    if (f.isSuccess()) {
+                    // 发送完毕的回调，如果发送时失败，则设置结果为null，然后唤醒responseFuture
+                    if (f.isSuccess()) { 
                         responseFuture.setSendRequestOK(true);
                         return;
                     } else {
@@ -420,6 +430,7 @@ public abstract class NettyRemotingAbstract {
                 }
             });
 
+            // 阻塞等待请求执行完毕，超时时间为指定的超时时间
             RemotingCommand responseCommand = responseFuture.waitResponse(timeoutMillis);
             if (null == responseCommand) {
                 if (responseFuture.isSendRequestOK()) {

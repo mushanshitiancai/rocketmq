@@ -73,6 +73,9 @@ public class NamesrvController {
         this.configuration.setStorePathFromConfig(this.namesrvConfig, "configStorePath");
     }
 
+    /**
+     * NameServer的启动流程 
+     */
     public boolean initialize() {
 
         this.kvConfigManager.load();

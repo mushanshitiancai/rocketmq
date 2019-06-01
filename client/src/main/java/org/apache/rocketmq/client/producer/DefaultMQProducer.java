@@ -76,6 +76,9 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
      * </p>
      *
      * See {@linktourl http://rocketmq.apache.org/docs/core-concept/} for more discussion.
+     * 
+     * 生产者组，主要用于消息事务。
+     * 相同角色的生产者被分组在一起。broker可以联系相同生产者组的不同生产者提交或回滚事务，以防原始生产者在事务之后崩溃。
      */
     private String producerGroup;
 
@@ -96,6 +99,7 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
 
     /**
      * Compress message body threshold, namely, message body larger than 4k will be compressed on default.
+     * 消息压缩阈值，默认大于4K压缩
      */
     private int compressMsgBodyOverHowmuch = 1024 * 4;
 
@@ -281,7 +285,9 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
      */
     @Override
     public void start() throws MQClientException {
+        // 设置生产者组名称
         this.setProducerGroup(withNamespace(this.producerGroup));
+        // 启动defaultMQProducerImpl，这是主要的逻辑实现类
         this.defaultMQProducerImpl.start();
         if (null != traceDispatcher) {
             try {
@@ -322,6 +328,9 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
      * <strong>Warn:</strong> this method has internal retry-mechanism, that is, internal implementation will retry
      * {@link #retryTimesWhenSendFailed} times before claiming failure. As a result, multiple messages may potentially
      * delivered to broker(s). It's up to the application developers to resolve potential duplication issue.
+     * 
+     * 以同步的方式发送消息。
+     * 内部包含重试机制，会重试retryTimesWhenSendFailed次，这个可能导致一个消息被发送多次，业务开发者需要处理好这种情况。
      *
      * @param msg Message to send.
      * @return {@link SendResult} instance to inform senders details of the deliverable, say Message ID of the message,

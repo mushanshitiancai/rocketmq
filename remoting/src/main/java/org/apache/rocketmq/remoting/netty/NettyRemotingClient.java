@@ -367,12 +367,19 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
         final Channel channel = this.getAndCreateChannel(addr);
         if (channel != null && channel.isActive()) {
             try {
+                // 网络请求前置hook
                 doBeforeRpcHooks(addr, request);
+                
+                // 虽然前面有N次超时校验，但是发送请求前还是需要再校验的，避免无意义的网络请求
                 long costTime = System.currentTimeMillis() - beginStartTime;
                 if (timeoutMillis < costTime) {
                     throw new RemotingTimeoutException("invokeSync call timeout");
                 }
+                
+                // 执行网络请求
                 RemotingCommand response = this.invokeSyncImpl(channel, request, timeoutMillis - costTime);
+                
+                // 网络请求后置hook
                 doAfterRpcHooks(RemotingHelper.parseChannelRemoteAddr(channel), request, response);
                 return response;
             } catch (RemotingSendRequestException e) {
@@ -622,6 +629,9 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
         }
     }
 
+    /**
+     * 处理输入报文的Handler
+     */
     class NettyClientHandler extends SimpleChannelInboundHandler<RemotingCommand> {
 
         @Override
