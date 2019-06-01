@@ -99,7 +99,9 @@ public class MessageStoreConfig {
     private int flushLeastPagesWhenWarmMapedFile = 1024 / 4 * 16;
     // How many pages are to be flushed when flush ConsumeQueue
     private int flushConsumeQueueLeastPages = 2;
+    // 强制异步刷盘时间间隔，如果大于这个间隔时，即使刷盘数据小于4个页面也会进行刷盘。默认10秒。
     private int flushCommitLogThoroughInterval = 1000 * 10;
+    // 强制异步提交时间间隔，如果大于这个间隔时，即使刷盘数据小于4个页面也会进行提交。默认200毫秒。
     private int commitCommitLogThoroughInterval = 200;
     private int flushConsumeQueueThoroughInterval = 1000 * 60;
     @ImportantField
@@ -130,6 +132,7 @@ public class MessageStoreConfig {
     private BrokerRole brokerRole = BrokerRole.ASYNC_MASTER;
     @ImportantField
     private FlushDiskType flushDiskType = FlushDiskType.ASYNC_FLUSH;
+    // 同步刷盘阻塞等待刷盘结果的时间，默认5秒
     private int syncFlushTimeout = 1000 * 5;
     private String messageDelayLevel = "1s 5s 10s 30s 1m 2m 3m 4m 5m 6m 7m 8m 9m 10m 20m 30m 1h 2h";
     private long flushDelayOffsetInterval = 1000 * 10;
@@ -144,8 +147,8 @@ public class MessageStoreConfig {
     private int defaultQueryMaxNum = 32;
 
     @ImportantField
-    private boolean transientStorePoolEnable = false;
-    private int transientStorePoolSize = 5;
+    private boolean transientStorePoolEnable = true;
+    private int transientStorePoolSize = 2;
     private boolean fastFailIfNoBufferInStorePool = false;
 
     private boolean enableDLegerCommitLog = false;

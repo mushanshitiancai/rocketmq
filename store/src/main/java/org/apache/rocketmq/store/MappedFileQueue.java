@@ -458,6 +458,11 @@ public class MappedFileQueue {
         return result;
     }
 
+    /**
+     * 提交暂存区内容到FileChannel，如果没有开启暂存区，则无实际操作
+     * 
+     * @return 如果有提交内容（提交偏移量变化了），返回false，否则返回true
+     */
     public boolean commit(final int commitLeastPages) {
         boolean result = true;
         MappedFile mappedFile = this.findMappedFileByOffset(this.committedWhere, this.committedWhere == 0);

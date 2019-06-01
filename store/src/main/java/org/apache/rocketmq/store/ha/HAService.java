@@ -76,6 +76,12 @@ public class HAService {
         this.groupTransferService.putRequest(request);
     }
 
+    /**
+     * 判断slave的状态
+     * 
+     * @param masterPutWhere master当前最新的全局写入偏移量
+     * @return
+     */
     public boolean isSlaveOK(final long masterPutWhere) {
         boolean result = this.connectionCount.get() > 0;
         result =

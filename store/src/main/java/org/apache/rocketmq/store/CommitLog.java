@@ -699,11 +699,17 @@ public class CommitLog {
         }
     }
 
+    /**
+     * 消息主从复制处理逻辑
+     */
     public void handleHA(AppendMessageResult result, PutMessageResult putMessageResult, MessageExt messageExt) {
+        // 如果当前Broker是Mater才执行这段逻辑
         if (BrokerRole.SYNC_MASTER == this.defaultMessageStore.getMessageStoreConfig().getBrokerRole()) {
             HAService service = this.defaultMessageStore.getHaService();
+            // 如果消息的isWaitStoreMsgOK == true
             if (messageExt.isWaitStoreMsgOK()) {
                 // Determine whether to wait
+                
                 if (service.isSlaveOK(result.getWroteOffset() + result.getWroteBytes())) {
                     GroupCommitRequest request = new GroupCommitRequest(result.getWroteOffset() + result.getWroteBytes());
                     service.putRequest(request);
@@ -951,7 +957,7 @@ public class CommitLog {
                 int interval = CommitLog.this.defaultMessageStore.getMessageStoreConfig().getCommitIntervalCommitLog();
                 // 提交CommitLog时，至少的提交页面数。异步刷盘（有暂存区）模式下有效。默认至少4个页面。
                 int commitDataLeastPages = CommitLog.this.defaultMessageStore.getMessageStoreConfig().getCommitCommitLogLeastPages();
-
+                // 强制异步提交时间间隔，如果大于这个间隔时，即使刷盘数据小于4个页面也会进行提交。默认200毫秒。
                 int commitDataThoroughInterval =
                     CommitLog.this.defaultMessageStore.getMessageStoreConfig().getCommitCommitLogThoroughInterval();
 
@@ -1006,6 +1012,7 @@ public class CommitLog {
                 int interval = CommitLog.this.defaultMessageStore.getMessageStoreConfig().getFlushIntervalCommitLog();
                 // 刷新CommitLog时，至少的刷盘页面数。异步刷盘（无暂存区）模式下有效。默认至少4个页面。
                 int flushPhysicQueueLeastPages = CommitLog.this.defaultMessageStore.getMessageStoreConfig().getFlushCommitLogLeastPages();
+                // 强制异步刷盘时间间隔，如果大于这个间隔时，即使刷盘数据小于4个页面也会进行刷盘。默认10秒。
                 int flushPhysicQueueThoroughInterval =
                     CommitLog.this.defaultMessageStore.getMessageStoreConfig().getFlushCommitLogThoroughInterval();
 
