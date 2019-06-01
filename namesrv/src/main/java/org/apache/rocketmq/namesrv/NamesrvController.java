@@ -87,16 +87,16 @@ public class NamesrvController {
 
         this.registerProcessor();
 
+        // 定时任务1：每10秒遍历一次Broker，检查是否有120s没有发送心跳包的Broker，如果有需要剔除
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
-
             @Override
             public void run() {
                 NamesrvController.this.routeInfoManager.scanNotActiveBroker();
             }
         }, 5, 10, TimeUnit.SECONDS);
 
+        // 定时任务2：每10分钟打印一次配置
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
-
             @Override
             public void run() {
                 NamesrvController.this.kvConfigManager.printAllPeriodically();
@@ -156,8 +156,10 @@ public class NamesrvController {
     }
 
     public void start() throws Exception {
+        // 启动Netty服务端
         this.remotingServer.start();
 
+        // ssl相关的
         if (this.fileWatchService != null) {
             this.fileWatchService.start();
         }
