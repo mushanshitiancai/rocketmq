@@ -159,9 +159,18 @@ public class MQClientInstance {
             MQVersion.getVersionDesc(MQVersion.CURRENT_VERSION), RemotingCommand.getSerializeTypeConfigInThisServer());
     }
 
+    /**
+     * 将NameServer返回的TopicRouteData转换为TopicPublishInfo
+     * 
+     * @param topic Topic名称
+     * @param route NameServer返回的TopicRouteData对象
+     * @return
+     */
     public static TopicPublishInfo topicRouteData2TopicPublishInfo(final String topic, final TopicRouteData route) {
         TopicPublishInfo info = new TopicPublishInfo();
         info.setTopicRouteData(route);
+        
+        // 如果TopicRouteData.orderTopicConf不为空
         if (route.getOrderTopicConf() != null && route.getOrderTopicConf().length() > 0) {
             String[] brokers = route.getOrderTopicConf().split(";");
             for (String broker : brokers) {
@@ -175,6 +184,8 @@ public class MQClientInstance {
 
             info.setOrderTopic(true);
         } else {
+            // 如果TopicRouteData.orderTopicConf为空
+            
             List<QueueData> qds = route.getQueueDatas();
             Collections.sort(qds);
             for (QueueData qd : qds) {
@@ -608,12 +619,23 @@ public class MQClientInstance {
         }
     }
 
+    /**
+     * 从路由中心获取Topic路由信息。会更新到Producer和Consumer相关Map中
+     * 
+     * @param topic
+     * @param isDefault
+     * @param defaultMQProducer
+     * @return
+     */
     public boolean updateTopicRouteInfoFromNameServer(final String topic, boolean isDefault,
         DefaultMQProducer defaultMQProducer) {
         try {
+            // 同时只允许一个线程调用NameServer，所以用锁来保护
             if (this.lockNamesrv.tryLock(LOCK_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)) {
                 try {
                     TopicRouteData topicRouteData;
+                    
+                    // TODO 
                     if (isDefault && defaultMQProducer != null) {
                         topicRouteData = this.mQClientAPIImpl.getDefaultTopicRouteInfoFromNameServer(defaultMQProducer.getCreateTopicKey(),
                             1000 * 3);
@@ -644,6 +666,7 @@ public class MQClientInstance {
                             }
 
                             // Update Pub info
+                            // 更新所有的MQProducerInner的Topic路由信息
                             {
                                 TopicPublishInfo publishInfo = topicRouteData2TopicPublishInfo(topic, topicRouteData);
                                 publishInfo.setHaveTopicRouterInfo(true);

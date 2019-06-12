@@ -99,6 +99,9 @@ public class RouteInfoManager {
         return topicList.encode();
     }
 
+    /**
+     * Broker注册 
+     */
     public RegisterBrokerResult registerBroker(
         final String clusterName,
         final String brokerAddr,
