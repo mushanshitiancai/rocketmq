@@ -76,7 +76,11 @@ public class PullMessageService extends ServiceThread {
         return scheduledExecutorService;
     }
 
+    /**
+     * 从PullRequest中拉取消息
+     */
     private void pullMessage(final PullRequest pullRequest) {
+        // 取出DefaultMQPushConsumerImpl，拉取的逻辑实现在其中（感觉有点乱？）
         final MQConsumerInner consumer = this.mQClientFactory.selectConsumer(pullRequest.getConsumerGroup());
         if (consumer != null) {
             DefaultMQPushConsumerImpl impl = (DefaultMQPushConsumerImpl) consumer;
@@ -86,13 +90,19 @@ public class PullMessageService extends ServiceThread {
         }
     }
 
+    /**
+     * pull消息逻辑
+     */
     @Override
     public void run() {
         log.info(this.getServiceName() + " service started");
 
         while (!this.isStopped()) {
             try {
+                // 从队列中取出PullRequest，如果没有则阻塞
                 PullRequest pullRequest = this.pullRequestQueue.take();
+                
+                // 然后从PullRequest中取出消息
                 this.pullMessage(pullRequest);
             } catch (InterruptedException ignored) {
             } catch (Exception e) {

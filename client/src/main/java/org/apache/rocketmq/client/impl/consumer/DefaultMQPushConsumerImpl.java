@@ -86,6 +86,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
     private static final long PULL_TIME_DELAY_MILLS_WHEN_EXCEPTION = 3000;
     /**
      * Flow control interval
+     * 流控间隔时间，单位毫秒
      */
     private static final long PULL_TIME_DELAY_MILLS_WHEN_FLOW_CONTROL = 50;
     /**
@@ -209,7 +210,11 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
         this.offsetStore = offsetStore;
     }
 
+    /**
+     * 拉取消息
+     */
     public void pullMessage(final PullRequest pullRequest) {
+        // 从PullRequest中取出ProcessQueue，ProcessQueue是MessageQueue在消费端的重现、快照
         final ProcessQueue processQueue = pullRequest.getProcessQueue();
         if (processQueue.isDropped()) {
             log.info("the pull request[{}] is dropped.", pullRequest.toString());
@@ -218,6 +223,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
 
         pullRequest.getProcessQueue().setLastPullTimestamp(System.currentTimeMillis());
 
+        // Consumer状态检查
         try {
             this.makeSureStateOK();
         } catch (MQClientException e) {
@@ -232,10 +238,14 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
             return;
         }
 
+        // 获取本地缓存的消息个数
         long cachedMessageCount = processQueue.getMsgCount().get();
+        // 获取本地缓存的消息大小，单位MB
         long cachedMessageSizeInMiB = processQueue.getMsgSize().get() / (1024 * 1024);
 
+        // 限流检查，Queue级别流控，默认每个Queue本地只会缓存最多1000条数据
         if (cachedMessageCount > this.defaultMQPushConsumer.getPullThresholdForQueue()) {
+            // 如果触发流控，放弃本次拉取，默认50ms后进行下一次拉取
             this.executePullRequestLater(pullRequest, PULL_TIME_DELAY_MILLS_WHEN_FLOW_CONTROL);
             if ((queueFlowControlTimes++ % 1000) == 0) {
                 log.warn(
@@ -245,7 +255,9 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
             return;
         }
 
+        // 流控检查，Queue级别流控，默认每个Queue只会缓存最多100MB数据。这里的大小只统计了消息Body。
         if (cachedMessageSizeInMiB > this.defaultMQPushConsumer.getPullThresholdSizeForQueue()) {
+            // 如果触发流控，放弃本次拉取，默认50ms后进行下一次拉取
             this.executePullRequestLater(pullRequest, PULL_TIME_DELAY_MILLS_WHEN_FLOW_CONTROL);
             if ((queueFlowControlTimes++ % 1000) == 0) {
                 log.warn(

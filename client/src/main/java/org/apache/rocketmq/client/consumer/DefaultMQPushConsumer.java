@@ -176,6 +176,8 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
     /**
      * Flow control threshold on queue level, each message queue will cache at most 1000 messages by default,
      * Consider the {@code pullBatchSize}, the instantaneous value may exceed the limit
+     * 
+     * Queue级别流控，默认每个Queue本地只会缓存最多1000条数据
      */
     private int pullThresholdForQueue = 1000;
 
@@ -185,6 +187,8 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
      *
      * <p>
      * The size of a message only measured by message body, so it's not accurate
+     * 
+     * Queue级别流控，默认每个Queue只会缓存最多100MB数据。这里的大小只统计了消息Body。
      */
     private int pullThresholdSizeForQueue = 100;
 
