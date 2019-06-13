@@ -35,7 +35,7 @@ import org.apache.rocketmq.common.message.MessageExt;
 import org.apache.rocketmq.common.protocol.body.ProcessQueueInfo;
 
 /**
- * Queue consumption snapshot
+ * ProcessQueue是MessageQueue在本地的快照，使用TreeMap实现
  */
 public class ProcessQueue {
     public final static long REBALANCE_LOCK_MAX_LIVE_TIME =
@@ -43,8 +43,15 @@ public class ProcessQueue {
     public final static long REBALANCE_LOCK_INTERVAL = Long.parseLong(System.getProperty("rocketmq.client.rebalance.lockInterval", "20000"));
     private final static long PULL_MAX_IDLE_TIME = Long.parseLong(System.getProperty("rocketmq.client.pull.pullMaxIdleTime", "120000"));
     private final InternalLogger log = ClientLogger.getLog();
+
+    /**
+     * 消息TreeMap是线程不安全的，所有更新操作都需要写锁保护
+     */
     private final ReadWriteLock lockTreeMap = new ReentrantReadWriteLock();
-    private final TreeMap<Long, MessageExt> msgTreeMap = new TreeMap<Long, MessageExt>();
+    /**
+     * 本地缓存消息的数据结构，TreeMap，key是消息的offset
+     */
+    private final TreeMap<Long/* queueOffset */, MessageExt> msgTreeMap = new TreeMap<Long, MessageExt>();
     private final AtomicLong msgCount = new AtomicLong();
     private final AtomicLong msgSize = new AtomicLong();
     private final Lock lockConsume = new ReentrantLock();
@@ -53,6 +60,10 @@ public class ProcessQueue {
      */
     private final TreeMap<Long, MessageExt> consumingMsgOrderlyTreeMap = new TreeMap<Long, MessageExt>();
     private final AtomicLong tryUnlockTimes = new AtomicLong(0);
+
+    /**
+     * ProcessQueue中最大的QueueOffset
+     */
     private volatile long queueOffsetMax = 0L;
     private volatile boolean dropped = false;
     private volatile long lastPullTimestamp = System.currentTimeMillis();
@@ -123,14 +134,26 @@ public class ProcessQueue {
         }
     }
 
+    /**
+     * 添加消息到ProcessQueue的缓冲池，然后更新统计数据
+     *
+     * @return 返回true表示ProcessQueue非空，可以进行消费
+     */
     public boolean putMessage(final List<MessageExt> msgs) {
         boolean dispatchToConsume = false;
         try {
+            // 消息TreeMap是线程不安全的，所有更新操作都需要写锁保护
             this.lockTreeMap.writeLock().lockInterruptibly();
             try {
                 int validMsgCnt = 0;
                 for (MessageExt msg : msgs) {
                     MessageExt old = msgTreeMap.put(msg.getQueueOffset(), msg);
+
+                    // 如果是第一次添加这个消息，才是有效添加，更新统计变量
+                    // 1. 消息数目
+                    // 2. 消息大小
+                    // 3. 最大消息偏移量
+                    // 这些数据会被来用做限流判断
                     if (null == old) {
                         validMsgCnt++;
                         this.queueOffsetMax = msg.getQueueOffset();
@@ -139,11 +162,13 @@ public class ProcessQueue {
                 }
                 msgCount.addAndGet(validMsgCnt);
 
+                // 如果当前处于暂停消费状态，并且这次添加完消息后消息缓存非空，则返回开始消息
                 if (!msgTreeMap.isEmpty() && !this.consuming) {
                     dispatchToConsume = true;
                     this.consuming = true;
                 }
 
+                // TODO 干嘛的
                 if (!msgs.isEmpty()) {
                     MessageExt messageExt = msgs.get(msgs.size() - 1);
                     String property = messageExt.getProperty(MessageConst.PROPERTY_MAX_OFFSET);
@@ -164,6 +189,9 @@ public class ProcessQueue {
         return dispatchToConsume;
     }
 
+    /**
+     * 返回queueOffset的最大间隔，通过TreeMap的最大键减去最小键实现
+     */
     public long getMaxSpan() {
         try {
             this.lockTreeMap.readLock().lockInterruptibly();
@@ -181,6 +209,12 @@ public class ProcessQueue {
         return 0;
     }
 
+    /**
+     * 删除指定消息，同时更新统计信息
+     *
+     * @param msgs
+     * @return 队列中最小的queueOffset？
+     */
     public long removeMessage(final List<MessageExt> msgs) {
         long result = -1;
         final long now = System.currentTimeMillis();

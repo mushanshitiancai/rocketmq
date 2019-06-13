@@ -211,7 +211,12 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
     }
 
     /**
-     * 拉取消息
+     * 拉取消息主流程
+     * 1. 检查状态
+     * 2. 检查是否限流，如果触发限流，默认50ms后进行下一次拉取
+     * 3.
+     *
+     * 在拉取消息主循环PullMessageService#run()中会调用这个方法
      */
     public void pullMessage(final PullRequest pullRequest) {
         // 从PullRequest中取出ProcessQueue，ProcessQueue是MessageQueue在消费端的重现、快照
@@ -309,6 +314,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
 
         final long beginTimestamp = System.currentTimeMillis();
 
+        // 拼装拉取成功回调对象
         PullCallback pullCallback = new PullCallback() {
             @Override
             public void onSuccess(PullResult pullResult) {
@@ -333,7 +339,10 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
                                 DefaultMQPushConsumerImpl.this.getConsumerStatsManager().incPullTPS(pullRequest.getConsumerGroup(),
                                     pullRequest.getMessageQueue().getTopic(), pullResult.getMsgFoundList().size());
 
+                                // 将拉取的消息添加到ProcessQueue，ProcessQueue是MessageQueue在本地的快照，使用TreeMap实现
                                 boolean dispatchToConsume = processQueue.putMessage(pullResult.getMsgFoundList());
+
+                                // 同时消费服务进行消费
                                 DefaultMQPushConsumerImpl.this.consumeMessageService.submitConsumeRequest(
                                     pullResult.getMsgFoundList(),
                                     processQueue,
@@ -413,6 +422,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
             }
         };
 
+        // 如果是集群模式，TODO
         boolean commitOffsetEnable = false;
         long commitOffsetValue = 0L;
         if (MessageModel.CLUSTERING == this.defaultMQPushConsumer.getMessageModel()) {
@@ -440,6 +450,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
             classFilter // class filter
         );
         try {
+            // 拉取消息，异步模式
             this.pullAPIWrapper.pullKernelImpl(
                 pullRequest.getMessageQueue(),
                 subExpression,

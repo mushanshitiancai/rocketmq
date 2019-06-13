@@ -170,6 +170,7 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
 
     /**
      * Concurrently max span offset.it has no effect on sequential consumption
+     * 最大并发跨度，如果是顺序消费则无效
      */
     private int consumeConcurrentlyMaxSpan = 2000;
 
@@ -220,7 +221,7 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
     private long pullInterval = 0;
 
     /**
-     * Batch consumption size
+     * 每次消费消息的个数
      */
     private int consumeMessageBatchMaxSize = 1;
 
