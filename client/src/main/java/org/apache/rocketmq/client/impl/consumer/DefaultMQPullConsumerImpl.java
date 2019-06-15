@@ -134,9 +134,12 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
         return this.mQClientFactory.getMQAdminImpl().fetchPublishMessageQueues(topic);
     }
 
+    /**
+     * 获取Topic对应的MessageQueue
+     */
     public Set<MessageQueue> fetchSubscribeMessageQueues(String topic) throws MQClientException {
         this.makeSureStateOK();
-        // check if has info in memory, otherwise invoke api.
+        // 先尝试从内存中获取，如果没有则从NameServer获取
         Set<MessageQueue> result = this.rebalanceImpl.getTopicSubscribeInfoTable().get(topic);
         if (null == result) {
             result = this.mQClientFactory.getMQAdminImpl().fetchSubscribeMessageQueues(topic);
@@ -523,6 +526,21 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
         }
     }
 
+    /**
+     * 阻塞模式拉取消息
+     * 问题：这里的Block是什么场景Block？是没有消息的时候Block嘛？那org.apache.rocketmq.example.simple.PullConsumer的例子中，
+     * 会一直卡在第一个Queue上吧？
+     * 
+     * @param mq MessageQueue对象
+     * @param subExpression 过滤表达式？
+     * @param offset 偏移量？
+     * @param maxNums 拉取最大数目
+     * @return
+     * @throws MQClientException
+     * @throws RemotingException
+     * @throws MQBrokerException
+     * @throws InterruptedException
+     */
     public PullResult pullBlockIfNotFound(MessageQueue mq, String subExpression, long offset, int maxNums)
         throws MQClientException, RemotingException, MQBrokerException, InterruptedException {
         SubscriptionData subscriptionData = getSubscriptionData(mq, subExpression);

@@ -26,7 +26,7 @@ import org.apache.rocketmq.common.consumer.ConsumeFromWhere;
 import org.apache.rocketmq.common.message.MessageExt;
 
 /**
- * This example shows how to subscribe and consume messages using providing {@link DefaultMQPushConsumer}.
+ * Push模式消费端例子
  */
 public class Consumer {
 
@@ -56,19 +56,20 @@ public class Consumer {
         consumer.setConsumeFromWhere(ConsumeFromWhere.CONSUME_FROM_FIRST_OFFSET);
 
         /*
-         * Subscribe one more more topics to consume.
+         * 订阅一个或者多个Topic
          */
         consumer.subscribe("TopicTest", "*");
 
         /*
-         *  Register callback to execute on arrival of messages fetched from brokers.
+         *  注册消息消费回调
          */
         consumer.registerMessageListener(new MessageListenerConcurrently() {
 
             @Override
-            public ConsumeConcurrentlyStatus consumeMessage(List<MessageExt> msgs,
-                ConsumeConcurrentlyContext context) {
+            public ConsumeConcurrentlyStatus consumeMessage(List<MessageExt> msgs, ConsumeConcurrentlyContext context) {
                 System.out.printf("%s Receive New Messages: %s %n", Thread.currentThread().getName(), msgs);
+                
+                // 返回消费成功
                 return ConsumeConcurrentlyStatus.CONSUME_SUCCESS;
             }
         });
