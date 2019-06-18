@@ -31,8 +31,10 @@ public class PullSysFlag {
      * @param classFilter  是否类过滤
      * @return
      */
-    public static int buildSysFlag(final boolean commitOffset, final boolean suspend,
-        final boolean subscription, final boolean classFilter) {
+    public static int buildSysFlag(final boolean commitOffset,
+                                   final boolean suspend,
+                                   final boolean subscription,
+                                   final boolean classFilter) {
         int flag = 0;
 
         if (commitOffset) {
