@@ -225,6 +225,21 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
         }
     }
 
+    /**
+     * 同步拉取消息
+     *
+     * @param mq
+     * @param subscriptionData
+     * @param offset
+     * @param maxNums
+     * @param block TODO
+     * @param timeout
+     * @return
+     * @throws MQClientException
+     * @throws RemotingException
+     * @throws MQBrokerException
+     * @throws InterruptedException
+     */
     private PullResult pullSyncImpl(MessageQueue mq, SubscriptionData subscriptionData, long offset, int maxNums, boolean block,
         long timeout)
         throws MQClientException, RemotingException, MQBrokerException, InterruptedException {

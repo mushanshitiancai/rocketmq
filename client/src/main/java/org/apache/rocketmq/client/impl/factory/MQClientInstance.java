@@ -219,12 +219,19 @@ public class MQClientInstance {
         return info;
     }
 
+    /**
+     * 将NameServer返回的TopicRouteData转换为MessageQueue集合，用于消息消费
+     */
     public static Set<MessageQueue> topicRouteData2TopicSubscribeInfo(final String topic, final TopicRouteData route) {
         Set<MessageQueue> mqList = new HashSet<MessageQueue>();
+
+        // 遍历TopicRouteData.queueDatas
         List<QueueData> qds = route.getQueueDatas();
         for (QueueData qd : qds) {
+            // 如果这个Queue是可读的，则添加到结果集合中
             if (PermName.isReadable(qd.getPerm())) {
                 for (int i = 0; i < qd.getReadQueueNums(); i++) {
+                    // queueId没有特别的定义，就是从0~N的一个数字
                     MessageQueue mq = new MessageQueue(topic, qd.getBrokerName(), i);
                     mqList.add(mq);
                 }

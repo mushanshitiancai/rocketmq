@@ -22,6 +22,15 @@ public class PullSysFlag {
     private final static int FLAG_SUBSCRIPTION = 0x1 << 2;
     private final static int FLAG_CLASS_FILTER = 0x1 << 3;
 
+    /**
+     * 构造拉取标志位
+     *
+     * @param commitOffset 是否确认消息
+     * @param suspend      是否长轮询
+     * @param subscription 是否过滤消息
+     * @param classFilter  是否类过滤
+     * @return
+     */
     public static int buildSysFlag(final boolean commitOffset, final boolean suspend,
         final boolean subscription, final boolean classFilter) {
         int flag = 0;

@@ -141,6 +141,9 @@ public class PullAPIWrapper {
 
     /**
      * 从Broker拉取消息的流程
+     *
+     * @param communicationMode push消费模式时是ASYNC
+     *                          pull消费模式时，根据同步pull是SYNC，异步pull是ASYNC
      */
     public PullResult pullKernelImpl(
         final MessageQueue mq,

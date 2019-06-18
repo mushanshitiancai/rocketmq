@@ -577,6 +577,7 @@ public class MQClientAPIImpl {
         RemotingCommand request = RemotingCommand.createRequestCommand(RequestCode.PULL_MESSAGE, requestHeader);
 
         switch (communicationMode) {
+            // pull没有ONEWAY模式
             case ONEWAY:
                 assert false;
                 return null;
