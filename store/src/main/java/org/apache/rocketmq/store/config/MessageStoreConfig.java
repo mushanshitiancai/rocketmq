@@ -125,6 +125,9 @@ public class MessageStoreConfig {
     @ImportantField
     private int maxTransferCountOnMessageInDisk = 8;
     @ImportantField
+    /**
+     * 访问消息在内存中比率,默认为40
+     */
     private int accessMessageInMemoryMaxRatio = 40;
     @ImportantField
     private boolean messageIndexEnable = true;

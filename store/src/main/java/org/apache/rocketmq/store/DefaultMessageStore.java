@@ -652,9 +652,13 @@ public class DefaultMessageStore implements MessageStore {
 
                         nextBeginOffset = offset + (i / ConsumeQueue.CQ_STORE_UNIT_SIZE);
 
+                        // ★判断是否需要建议Consumer下次从Slave拉取
+                        // 当前拉取批次拉取的最大offset与目前写入offset的差距
                         long diff = maxOffsetPy - maxPhyOffsetPulling;
+                        // 内存中消息的大小（总内存大小*用于存放消息的内存）
                         long memory = (long) (StoreUtil.TOTAL_PHYSICAL_MEMORY_SIZE
                             * (this.messageStoreConfig.getAccessMessageInMemoryMaxRatio() / 100.0));
+                        // 如果当前拉取的消息在磁盘中，则下次建议中Broker拉取消息，避免在Master上读取磁盘导致IO上升和页面换入换出的试验
                         getResult.setSuggestPullingFromSlave(diff > memory);
                     } finally {
 

@@ -249,9 +249,12 @@ public class PullMessageProcessor implements NettyRequestProcessor {
             responseHeader.setMinOffset(getMessageResult.getMinOffset());
             responseHeader.setMaxOffset(getMessageResult.getMaxOffset());
 
+            // 设置下次建议拉取的BrokerId
             if (getMessageResult.isSuggestPullingFromSlave()) {
+                // 如果获取的结果建议下次从Slave拉取消息，则从Slave中选取一个
                 responseHeader.setSuggestWhichBrokerId(subscriptionGroupConfig.getWhichBrokerWhenConsumeSlowly());
             } else {
+                // 如果没有建议从Slave拉取，则BrokerId为0
                 responseHeader.setSuggestWhichBrokerId(MixAll.MASTER_ID);
             }
 
