@@ -27,6 +27,9 @@ import org.apache.rocketmq.store.config.StorePathConfigHelper;
 public class ConsumeQueue {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
 
+    /**
+     * ConsumeQueue文件中一个记录的大小为20字节
+     */
     public static final int CQ_STORE_UNIT_SIZE = 20;
     private static final InternalLogger LOG_ERROR = InternalLoggerFactory.getLogger(LoggerName.STORE_ERROR_LOGGER_NAME);
 
@@ -483,9 +486,19 @@ public class ConsumeQueue {
         }
     }
 
+    /**
+     * 根据Consume Queue Offset从ConsumeQueue文件获取
+     * 
+     * @param startIndex ConsumeQueue偏移量，以ConsumeQueue记录为单位
+     * @return
+     */
     public SelectMappedBufferResult getIndexBuffer(final long startIndex) {
         int mappedFileSize = this.mappedFileSize;
+        
+        // 偏移量*每个数据的大小，等于文件偏移量
         long offset = startIndex * CQ_STORE_UNIT_SIZE;
+        
+        // 根据文件偏移量获取MappedFile，再从MappedFile中获取ByteBuffer
         if (offset >= this.getMinLogicOffset()) {
             MappedFile mappedFile = this.mappedFileQueue.findMappedFileByOffset(offset);
             if (mappedFile != null) {

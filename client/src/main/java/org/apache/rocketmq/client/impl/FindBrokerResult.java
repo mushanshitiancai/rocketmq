@@ -17,8 +17,17 @@
 package org.apache.rocketmq.client.impl;
 
 public class FindBrokerResult {
+    /**
+     * Broker地址
+     */
     private final String brokerAddr;
+    /**
+     * 该Broker是否为slave
+     */
     private final boolean slave;
+    /**
+     * Broker的版本号
+     */
     private final int brokerVersion;
 
     public FindBrokerResult(String brokerAddr, boolean slave) {

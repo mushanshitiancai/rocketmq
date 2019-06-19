@@ -230,7 +230,7 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
      * 同步拉取消息
      *
      * @param mq               从哪个MessageQueue拉取消息
-     * @param subscriptionData
+     * @param subscriptionData 
      * @param offset           拉取偏移量
      * @param maxNums          最大拉取数目
      * @param block            是否开启长轮询

@@ -428,11 +428,21 @@ public class MappedFile extends ReferenceResource {
         return null;
     }
 
+    /**
+     * 根据当前日志文件内偏移量获取ByteBuffer
+     * 
+     * @param pos 当前日志文件内偏移量
+     * @return
+     */
     public SelectMappedBufferResult selectMappedBuffer(int pos) {
         int readPosition = getReadPosition();
+        
+        // 如果目标位置大于等于0并且小于最大写入位置
         if (pos < readPosition && pos >= 0) {
             if (this.hold()) {
+                // 创建子ByteBuffer
                 ByteBuffer byteBuffer = this.mappedByteBuffer.slice();
+                // 设置ByteBuffer的指针位置
                 byteBuffer.position(pos);
                 int size = readPosition - pos;
                 ByteBuffer byteBufferNew = byteBuffer.slice();

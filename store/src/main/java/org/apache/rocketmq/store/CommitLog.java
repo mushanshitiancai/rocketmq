@@ -860,9 +860,14 @@ public class CommitLog {
         return -1;
     }
 
+    /**
+     * 根据commit log offset和size获取MappedByteBuffer
+     */
     public SelectMappedBufferResult getMessage(final long offset, final int size) {
+        // 根据offset获取MappedFile
         int mappedFileSize = this.defaultMessageStore.getMessageStoreConfig().getMapedFileSizeCommitLog();
         MappedFile mappedFile = this.mappedFileQueue.findMappedFileByOffset(offset, offset == 0);
+        
         if (mappedFile != null) {
             int pos = (int) (offset % mappedFileSize);
             return mappedFile.selectMappedBuffer(pos, size);

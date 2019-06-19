@@ -16,13 +16,6 @@
  */
 package org.apache.rocketmq.client.impl.consumer;
 
-import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Random;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.atomic.AtomicLong;
 import org.apache.rocketmq.client.consumer.PullCallback;
 import org.apache.rocketmq.client.consumer.PullResult;
 import org.apache.rocketmq.client.consumer.PullStatus;
@@ -37,17 +30,21 @@ import org.apache.rocketmq.client.log.ClientLogger;
 import org.apache.rocketmq.common.MQVersion;
 import org.apache.rocketmq.common.MixAll;
 import org.apache.rocketmq.common.filter.ExpressionType;
-import org.apache.rocketmq.logging.InternalLogger;
-import org.apache.rocketmq.common.message.MessageAccessor;
-import org.apache.rocketmq.common.message.MessageConst;
-import org.apache.rocketmq.common.message.MessageDecoder;
-import org.apache.rocketmq.common.message.MessageExt;
-import org.apache.rocketmq.common.message.MessageQueue;
+import org.apache.rocketmq.common.message.*;
 import org.apache.rocketmq.common.protocol.header.PullMessageRequestHeader;
 import org.apache.rocketmq.common.protocol.heartbeat.SubscriptionData;
 import org.apache.rocketmq.common.protocol.route.TopicRouteData;
 import org.apache.rocketmq.common.sysflag.PullSysFlag;
+import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.remoting.exception.RemotingException;
+
+import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class PullAPIWrapper {
     private final InternalLogger log = ClientLogger.getLog();
@@ -142,8 +139,24 @@ public class PullAPIWrapper {
     /**
      * 从Broker拉取消息的流程
      *
-     * @param communicationMode push消费模式时是ASYNC
-     *                          pull消费模式时，根据同步pull是SYNC，异步pull是ASYNC
+     * @param mq                         从哪个MessageQueue拉取消息
+     * @param subExpression              消息过滤表达式
+     * @param expressionType             消息表达式类型，分为TAG、SQL92
+     * @param subVersion
+     * @param offset                     消息拉取偏移量
+     * @param maxNums                    本次拉取消息最大数目，默认32条
+     * @param sysFlag                    拉取系统标记
+     * @param commitOffset               当前MessageQueue的消费进度（内存中）
+     * @param brokerSuspendMaxTimeMillis 长轮询Broker的超时时间
+     * @param timeoutMillis              拉取消息socket超时时间
+     * @param communicationMode          push消费模式时是ASYNC
+     *                                   pull消费模式时，根据同步pull是SYNC，异步pull是ASYNC
+     * @param pullCallback               拉取消息后的回调
+     * @return
+     * @throws MQClientException
+     * @throws RemotingException
+     * @throws MQBrokerException
+     * @throws InterruptedException
      */
     public PullResult pullKernelImpl(
         final MessageQueue mq,
@@ -163,6 +176,7 @@ public class PullAPIWrapper {
         FindBrokerResult findBrokerResult =
             this.mQClientFactory.findBrokerAddressInSubscribe(mq.getBrokerName(),
                 this.recalculatePullFromWhichNode(mq), false);
+        // 内存中没获取到则从NameServer中获取
         if (null == findBrokerResult) {
             this.mQClientFactory.updateTopicRouteInfoFromNameServer(mq.getTopic());
             findBrokerResult =

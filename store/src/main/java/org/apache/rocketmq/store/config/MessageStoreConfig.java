@@ -104,12 +104,24 @@ public class MessageStoreConfig {
     // 强制异步提交时间间隔，如果大于这个间隔时，即使刷盘数据小于4个页面也会进行提交。默认200毫秒。
     private int commitCommitLogThoroughInterval = 200;
     private int flushConsumeQueueThoroughInterval = 1000 * 60;
+    /**
+     * 一次服务端消息拉取，消息在内存中传输允许的最大传输字节数，默认256KB
+     */
     @ImportantField
     private int maxTransferBytesOnMessageInMemory = 1024 * 256;
+    /**
+     * 一次服务消息拉取，消息在内存中传输运行的最大消息条数，默认为32条
+     */
     @ImportantField
     private int maxTransferCountOnMessageInMemory = 32;
+    /**
+     * 一次服务消息端消息拉取，消息在磁盘中传输允许的最大字节，默认64KB
+     */
     @ImportantField
     private int maxTransferBytesOnMessageInDisk = 1024 * 64;
+    /**
+     * 一次消息服务端消息拉取，消息在磁盘中传输允许的最大条数，默认为8条
+     */
     @ImportantField
     private int maxTransferCountOnMessageInDisk = 8;
     @ImportantField

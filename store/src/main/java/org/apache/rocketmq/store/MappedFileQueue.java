@@ -301,6 +301,10 @@ public class MappedFileQueue {
         return -1;
     }
 
+    /**
+     * 返回当前日志文件有效数据的最大offset
+     * TODO 目前来看offset都是指从第0个日志文件开始的逻辑偏移量，而position指的是当前日志文件内的文件偏移量
+     */
     public long getMaxOffset() {
         MappedFile mappedFile = getLastMappedFile();
         if (mappedFile != null) {
@@ -477,9 +481,9 @@ public class MappedFileQueue {
     }
 
     /**
-     * Finds a mapped file by offset.
+     * 根据偏移量查找到对应的日志文件
      *
-     * @param offset Offset.
+     * @param offset 偏移量，以第0个日志文件的开头为起始位置
      * @param returnFirstOnNotFound If the mapped file is not found, then return the first one.
      * @return Mapped file or null (when not found and returnFirstOnNotFound is <code>false</code>).
      */
