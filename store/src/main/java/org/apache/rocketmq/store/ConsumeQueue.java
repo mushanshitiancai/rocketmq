@@ -59,6 +59,7 @@ public class ConsumeQueue {
         this.topic = topic;
         this.queueId = queueId;
 
+        // ConsumeQueue文件路径的格式：storePath/topic/queueId
         String queueDir = this.storePath
             + File.separator + topic
             + File.separator + queueId;
@@ -78,6 +79,9 @@ public class ConsumeQueue {
         }
     }
 
+    /**
+     * 加载磁盘上的ConsumeQueue文件
+     */
     public boolean load() {
         boolean result = this.mappedFileQueue.load();
         log.info("load consume queue " + this.topic + "-" + this.queueId + " " + (result ? "OK" : "Failed"));
@@ -487,10 +491,10 @@ public class ConsumeQueue {
     }
 
     /**
-     * 根据Consume Queue Offset从ConsumeQueue文件获取
+     * 根据Consume Queue Offset从ConsumeQueue文件获取MappedByteBuffer
+     * Pull操作会调用该方法
      * 
      * @param startIndex ConsumeQueue偏移量，以ConsumeQueue记录为单位
-     * @return
      */
     public SelectMappedBufferResult getIndexBuffer(final long startIndex) {
         int mappedFileSize = this.mappedFileSize;

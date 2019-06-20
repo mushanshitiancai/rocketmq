@@ -103,6 +103,9 @@ public class DefaultMessageStore implements MessageStore {
 
     private AtomicLong printTimes = new AtomicLong(0);
 
+    /**
+     * CommitLog转发器列表
+     */
     private final LinkedList<CommitLogDispatcher> dispatcherList;
 
     private RandomAccessFile lockFile;
@@ -149,6 +152,9 @@ public class DefaultMessageStore implements MessageStore {
 
         this.indexService.start();
 
+        // 添加两个CommitLog转发器
+        // 1.CommitLog -> ConsumeQueue转发器
+        // 2.CommitLog -> Index转发器
         this.dispatcherList = new LinkedList<>();
         this.dispatcherList.addLast(new CommitLogDispatcherBuildConsumeQueue());
         this.dispatcherList.addLast(new CommitLogDispatcherBuildIndex());
@@ -169,12 +175,19 @@ public class DefaultMessageStore implements MessageStore {
     }
 
     /**
-     * @throws IOException
+     * 加载磁盘上的文件
+     * 1.读取延迟消息日志文件
+     * 2.读取CommitLog
+     * 3.读取ConsumeQueue
+     * 4.读取checkpoint
+     * 5.读取索引文件
+     * 6.如果上次是异常退出，需要进行恢复操作
      */
     public boolean load() {
         boolean result = true;
 
         try {
+            // 查看storePath/abort文件是否存在，如果存在说明上次是异常退出
             boolean lastExitOK = !this.isTempFileExist();
             log.info("last shutdown {}", lastExitOK ? "normally" : "abnormally");
 
@@ -182,10 +195,10 @@ public class DefaultMessageStore implements MessageStore {
                 result = result && this.scheduleMessageService.load();
             }
 
-            // load Commit Log
+            // 读取Commit Log
             result = result && this.commitLog.load();
 
-            // load Consume Queue
+            // 读取Consume Queue
             result = result && this.loadConsumeQueue();
 
             if (result) {
@@ -194,6 +207,7 @@ public class DefaultMessageStore implements MessageStore {
 
                 this.indexService.load(lastExitOK);
 
+                // 如果上次是异常退出，需要进行恢复操作
                 this.recover(lastExitOK);
 
                 log.info("load over, and the max phy offset = {}", this.getMaxPhyOffset());
@@ -618,7 +632,7 @@ public class DefaultMessageStore implements MessageStore {
                                 continue;
                             }
 
-                            // 根据commit log offset和size获取消息
+                            // ★根据commit log offset和size获取消息
                             SelectMappedBufferResult selectResult = this.commitLog.getMessage(offsetPy, sizePy);
                             if (null == selectResult) {
                                 if (getResult.getBufferTotalSize() == 0) {
@@ -676,6 +690,7 @@ public class DefaultMessageStore implements MessageStore {
             nextBeginOffset = nextOffsetCorrection(offset, 0);
         }
 
+        // 更新统计信息
         if (GetMessageStatus.FOUND == status) {
             this.storeStatsService.getGetMessageTimesTotalFound().incrementAndGet();
         } else {
@@ -1832,8 +1847,14 @@ public class DefaultMessageStore implements MessageStore {
         }
     }
 
+    /**
+     * 消息内部存储转发线程
+     */
     class ReputMessageService extends ServiceThread {
 
+        /**
+         * 当前reput操作起始offset
+         */
         private volatile long reputFromOffset = 0;
 
         public long getReputFromOffset() {
@@ -1869,7 +1890,12 @@ public class DefaultMessageStore implements MessageStore {
             return this.reputFromOffset < DefaultMessageStore.this.commitLog.getMaxOffset();
         }
 
+        /**
+         * 执行Reput操作
+         */
         private void doReput() {
+            // 如果Reput线程记录的最小offset小于Commit的最小offset，则说明Reput线程滞后太多，旧的CommitLog被清理了
+            // 打印警告，然后使用CommitLog的最小offset开始Reput
             if (this.reputFromOffset < DefaultMessageStore.this.commitLog.getMinOffset()) {
                 log.warn("The reputFromOffset={} is smaller than minPyOffset={}, this usually indicate that the dispatch behind too much and the commitlog has expired.",
                     this.reputFromOffset, DefaultMessageStore.this.commitLog.getMinOffset());
@@ -1950,6 +1976,7 @@ public class DefaultMessageStore implements MessageStore {
 
             while (!this.isStopped()) {
                 try {
+                    // 每次休息1ms
                     Thread.sleep(1);
                     this.doReput();
                 } catch (Exception e) {

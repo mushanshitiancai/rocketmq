@@ -147,7 +147,9 @@ public class MessageStoreConfig {
     private BrokerRole brokerRole = BrokerRole.ASYNC_MASTER;
     @ImportantField
     private FlushDiskType flushDiskType = FlushDiskType.ASYNC_FLUSH;
-    // 同步刷盘阻塞等待刷盘结果的时间，默认5秒
+    /**
+     * 同步刷盘阻塞等待刷盘结果的时间，默认5秒
+     */
     private int syncFlushTimeout = 1000 * 5;
     private String messageDelayLevel = "1s 5s 10s 30s 1m 2m 3m 4m 5m 6m 7m 8m 9m 10m 20m 30m 1h 2h";
     private long flushDelayOffsetInterval = 1000 * 10;
@@ -157,6 +159,9 @@ public class MessageStoreConfig {
     private boolean offsetCheckInSlave = false;
     private boolean debugLockEnable = false;
     private boolean duplicationEnable = false;
+    /**
+     * 是否统计磁盘的使用情况,默认为true
+     */
     private boolean diskFallRecorded = true;
     private long osPageCacheBusyTimeOutMills = 1000;
     private int defaultQueryMaxNum = 32;
