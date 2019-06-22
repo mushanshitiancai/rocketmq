@@ -29,7 +29,9 @@ import org.apache.rocketmq.common.message.MessageQueue;
  * 
  * 问题：
  * 1. 是循序遍历所有的MessageQueue，也就是说处理完第一个再处理第二个，如果第二个处理期间，第二个Queue又有新消息，这个例子是不能消费的？
+ * ==> 第一个MessageQueue长轮询超时后，才会处理下一个MessageQueue
  * 2. 如果第一个Queue一直有消息，则一直不会处理之后的Queue？
+ * ==> 是的 TODO
  */
 public class PullConsumer {
     /**
@@ -52,7 +54,7 @@ public class PullConsumer {
             while (true) {
                 try {
                     
-                    // 阻塞拉取，没有新消息阻塞？？
+                    // 同步长轮询拉取消息
                     PullResult pullResult =
                         consumer.pullBlockIfNotFound(mq, null, getMessageQueueOffset(mq), 32);
                     System.out.printf("%s%n", pullResult);

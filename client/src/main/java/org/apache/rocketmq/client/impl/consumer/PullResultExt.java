@@ -21,8 +21,17 @@ import org.apache.rocketmq.client.consumer.PullResult;
 import org.apache.rocketmq.client.consumer.PullStatus;
 import org.apache.rocketmq.common.message.MessageExt;
 
+/**
+ * Broker返回的Pull结果对象，包含了原始的二进制内容数组
+ */
 public class PullResultExt extends PullResult {
+    /**
+     * Broker建议下次从哪个BrokerId拉取
+     */
     private final long suggestWhichBrokerId;
+    /**
+     * Broker返回的响应二进制内容
+     */
     private byte[] messageBinary;
 
     public PullResultExt(PullStatus pullStatus, long nextBeginOffset, long minOffset, long maxOffset,

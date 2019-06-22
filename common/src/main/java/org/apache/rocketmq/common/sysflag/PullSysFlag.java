@@ -25,7 +25,7 @@ public class PullSysFlag {
     /**
      * 构造拉取标志位
      *
-     * @param commitOffset 是否确认消息
+     * @param commitOffset 是否确认消息 TODO
      * @param suspend      是否长轮询
      * @param subscription 是否过滤消息
      * @param classFilter  是否类过滤

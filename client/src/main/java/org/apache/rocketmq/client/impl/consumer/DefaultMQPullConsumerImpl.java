@@ -279,7 +279,10 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
             CommunicationMode.SYNC,
             null
         );
+        
+        // 对Broker返回的拉取结果进行处理
         this.pullAPIWrapper.processPullResult(mq, pullResult, subscriptionData);
+        
         //If namespace not null , reset Topic without namespace.
         this.resetTopic(pullResult.getMsgFoundList());
         if (!this.consumeMessageHookList.isEmpty()) {

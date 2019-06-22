@@ -64,12 +64,23 @@ public class PullAPIWrapper {
         this.unitMode = unitMode;
     }
 
+    /**
+     * 处理Pull结果
+     * 
+     * @param mq
+     * @param pullResult
+     * @param subscriptionData
+     * @return
+     */
     public PullResult processPullResult(final MessageQueue mq, final PullResult pullResult,
         final SubscriptionData subscriptionData) {
         PullResultExt pullResultExt = (PullResultExt) pullResult;
 
+        // 将Broker建议的拉取BrokerId记录下来
         this.updatePullFromWhichNode(mq, pullResultExt.getSuggestWhichBrokerId());
+        
         if (PullStatus.FOUND == pullResult.getPullStatus()) {
+            // 解码响应的二进制内容
             ByteBuffer byteBuffer = ByteBuffer.wrap(pullResultExt.getMessageBinary());
             List<MessageExt> msgList = MessageDecoder.decodes(byteBuffer);
 
@@ -172,7 +183,8 @@ public class PullAPIWrapper {
         final CommunicationMode communicationMode,
         final PullCallback pullCallback
     ) throws MQClientException, RemotingException, MQBrokerException, InterruptedException {
-        // 获取从哪个Broker上拉取消息
+        // 根据Queue信息中的Broker名称和BrokerId获取Broker信息
+        // BrokerId第一次是0，表示从Master Broker拉取消息，Broker拉取消息的响应会包含下次建议拉取的BrokerId
         FindBrokerResult findBrokerResult =
             this.mQClientFactory.findBrokerAddressInSubscribe(mq.getBrokerName(),
                 this.recalculatePullFromWhichNode(mq), false);
@@ -195,6 +207,7 @@ public class PullAPIWrapper {
             }
             int sysFlagInner = sysFlag;
 
+            // TODO
             if (findBrokerResult.isSlave()) {
                 sysFlagInner = PullSysFlag.clearCommitOffsetFlag(sysFlagInner);
             }
@@ -235,7 +248,7 @@ public class PullAPIWrapper {
      * 判断当前MessageQueue从哪个Broker获取消息
      *
      * 如果pullFromWhichNodeTable指定了BrokerId，则从对应Broker获取，否则默认从Master获取
-     * 每次拉取消息，Broker会返回从哪个Broker拉取的建议信息
+     * 每次拉取消息，Broker会返回从哪个Broker拉取的建议信息，Consumer会记录下来（PullAPIWrapper#processPullResult）
      */
     public long recalculatePullFromWhichNode(final MessageQueue mq) {
         if (this.isConnectBrokerByUser()) {
