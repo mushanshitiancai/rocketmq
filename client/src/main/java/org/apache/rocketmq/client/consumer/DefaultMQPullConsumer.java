@@ -58,13 +58,11 @@ public class DefaultMQPullConsumer extends ClientConfig implements MQPullConsume
      */
     private long consumerTimeoutMillisWhenSuspend = 1000 * 30;
     /**
-     * The socket timeout in milliseconds
-     *
      * pull的socket 超时时间
      */
     private long consumerPullTimeoutMillis = 1000 * 10;
     /**
-     * Consumption pattern,default is clustering
+     * 消费模式，默认是集群模式
      */
     private MessageModel messageModel = MessageModel.CLUSTERING;
     /**

@@ -78,7 +78,9 @@ public class MessageStoreConfig {
     @ImportantField
     private String deleteWhen = "04";
     private int diskMaxUsedSpaceRatio = 75;
-    // The number of hours to keep a log file before deleting it (in hours)
+    /**
+     * 文件保留时间，单位小时，默认72小时
+     */
     @ImportantField
     private int fileReservedTime = 72;
     // Flow control for ConsumeQueue
@@ -167,8 +169,8 @@ public class MessageStoreConfig {
     private int defaultQueryMaxNum = 32;
 
     @ImportantField
-    private boolean transientStorePoolEnable = true;
-    private int transientStorePoolSize = 2;
+    private boolean transientStorePoolEnable = false;
+    private int transientStorePoolSize = 5;
     private boolean fastFailIfNoBufferInStorePool = false;
 
     private boolean enableDLegerCommitLog = false;

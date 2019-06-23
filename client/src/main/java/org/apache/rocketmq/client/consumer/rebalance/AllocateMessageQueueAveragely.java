@@ -16,19 +16,34 @@
  */
 package org.apache.rocketmq.client.consumer.rebalance;
 
-import java.util.ArrayList;
-import java.util.List;
 import org.apache.rocketmq.client.consumer.AllocateMessageQueueStrategy;
 import org.apache.rocketmq.client.log.ClientLogger;
-import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.common.message.MessageQueue;
+import org.apache.rocketmq.logging.InternalLogger;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
- * Average Hashing queue algorithm
+ * 消息队列分配算法 - 平均分配算法
+ * 如果有消息队列q1,q2...q8，有消费者c1,c2,c3
+ * 则分配结果是：
+ * c1: q1,q2,q3
+ * c2: q4,q5,q6
+ * c3: q7,q8
  */
 public class AllocateMessageQueueAveragely implements AllocateMessageQueueStrategy {
     private final InternalLogger log = ClientLogger.getLog();
 
+    /**
+     * 分配算法
+     *
+     * @param consumerGroup 消费者组名称
+     * @param currentCID    当前消费者Id
+     * @param mqAll         当前Topic下的所有MessageQueue
+     * @param cidAll        当前消费者组下的所有消费者
+     * @return 根据算法得出的分配给当前Consumer的MessageQueue列表
+     */
     @Override
     public List<MessageQueue> allocate(String consumerGroup, String currentCID, List<MessageQueue> mqAll,
         List<String> cidAll) {
@@ -53,9 +68,17 @@ public class AllocateMessageQueueAveragely implements AllocateMessageQueueStrate
 
         int index = cidAll.indexOf(currentCID);
         int mod = mqAll.size() % cidAll.size();
+        
+        // 计算每个Consumer会分配到多少个MessageQueue
+        // 如果Consumer的个数大于MessageQueue，则每个Consumer只会分配到1个MessageQueue，有些Consumer会没有分配到
+        // 如果Consumer的个数小于MessageQueue，则么给Consumer会分配到至少一个的MessageQueue
         int averageSize =
-            mqAll.size() <= cidAll.size() ? 1 : (mod > 0 && index < mod ? mqAll.size() / cidAll.size()
-                + 1 : mqAll.size() / cidAll.size());
+            mqAll.size() <= cidAll.size() 
+                    ? 1 
+                    : (mod > 0 && index < mod 
+                        ? mqAll.size() / cidAll.size() + 1 
+                        : mqAll.size() / cidAll.size());
+        
         int startIndex = (mod > 0 && index < mod) ? index * averageSize : index * averageSize + mod;
         int range = Math.min(averageSize, mqAll.size() - startIndex);
         for (int i = 0; i < range; i++) {

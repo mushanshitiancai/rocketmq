@@ -16,7 +16,14 @@
  */
 package org.apache.rocketmq.common.consumer;
 
+/**
+ * 用于指定Consumer第一次启动时从Queue的哪个位置开始消费
+ * 如果Consumer不是第一次启动，则会从Broker中获取历史offset，就不会受到这个配置的影响
+ */
 public enum ConsumeFromWhere {
+    /**
+     * Consumer从Broker中最新的消息开始消费
+     */
     CONSUME_FROM_LAST_OFFSET,
 
     @Deprecated
@@ -25,6 +32,12 @@ public enum ConsumeFromWhere {
     CONSUME_FROM_MIN_OFFSET,
     @Deprecated
     CONSUME_FROM_MAX_OFFSET,
+    /**
+     * Consumer从Broker中最早的可用消息开始消费
+     */
     CONSUME_FROM_FIRST_OFFSET,
+    /**
+     * Consumer从指定的时间戳开始消费，这意味着在consumeTimestamp之前生成的消息将被忽略
+     */
     CONSUME_FROM_TIMESTAMP,
 }

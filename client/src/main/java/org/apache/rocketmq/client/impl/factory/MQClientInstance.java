@@ -232,7 +232,7 @@ public class MQClientInstance {
                     this.startScheduledTask();
                     // 启动pull消息线程
                     this.pullMessageService.start();
-                    // 启动负载均衡线程
+                    // 启动消息队列负载均衡线程
                     this.rebalanceService.start();
                     // Start push service
                     this.defaultMQProducer.getDefaultMQProducerImpl().start(false);
@@ -647,8 +647,7 @@ public class MQClientInstance {
                                 this.brokerAddrTable.put(bd.getBrokerName(), bd.getBrokerAddrs());
                             }
 
-                            // Update Pub info
-                            // 更新所有的MQProducerInner的Topic路由信息
+                            // 更新所有的Producer的Topic路由信息
                             {
                                 TopicPublishInfo publishInfo = topicRouteData2TopicPublishInfo(topic, topicRouteData);
                                 publishInfo.setHaveTopicRouterInfo(true);
@@ -662,7 +661,7 @@ public class MQClientInstance {
                                 }
                             }
 
-                            // Update sub info
+                            // 更新所有的Consumer的Topic路由信息
                             {
                                 Set<MessageQueue> subscribeInfo = topicRouteData2TopicSubscribeInfo(topic, topicRouteData);
                                 Iterator<Entry<String, MQConsumerInner>> it = this.consumerTable.entrySet().iterator();
@@ -979,6 +978,9 @@ public class MQClientInstance {
         this.rebalanceService.wakeup();
     }
 
+    /**
+     * 调用所有注册的Consumer，进行负载均衡操作
+     */
     public void doRebalance() {
         for (Map.Entry<String, MQConsumerInner> entry : this.consumerTable.entrySet()) {
             MQConsumerInner impl = entry.getValue();
@@ -1000,6 +1002,9 @@ public class MQClientInstance {
         return this.consumerTable.get(group);
     }
 
+    /**
+     * 返回Broker名称对应的第一个找到的Broker（不管是Master还是Slave）
+     */
     public FindBrokerResult findBrokerAddressInAdmin(final String brokerName) {
         String brokerAddr = null;
         boolean slave = false;
@@ -1030,6 +1035,9 @@ public class MQClientInstance {
         return null;
     }
 
+    /**
+     * 返回Broker名称对应的Master Broker地址
+     */
     public String findBrokerAddressInPublish(final String brokerName) {
         HashMap<Long/* brokerId */, String/* address */> map = this.brokerAddrTable.get(brokerName);
         if (map != null && !map.isEmpty()) {
@@ -1087,7 +1095,11 @@ public class MQClientInstance {
         return 0;
     }
 
+    /**
+     * 根据Topic名称和消费者组名称查询该消费者组中所有消费者Id（从Topic关联的Broker中随机选取一个发起查询请求）
+     */
     public List<String> findConsumerIdList(final String topic, final String group) {
+        // 从Topic关联的Broker中随机取一个Broker地址
         String brokerAddr = this.findBrokerAddrByTopic(topic);
         if (null == brokerAddr) {
             this.updateTopicRouteInfoFromNameServer(topic);
@@ -1096,6 +1108,7 @@ public class MQClientInstance {
 
         if (null != brokerAddr) {
             try {
+                // 向随机选取的Broker发起请求，获取该消费者组中所有消费者Id
                 return this.mQClientAPIImpl.getConsumerIdListByGroup(brokerAddr, group, 3000);
             } catch (Exception e) {
                 log.warn("getConsumerIdListByGroup exception, " + brokerAddr + " " + group, e);
@@ -1105,6 +1118,9 @@ public class MQClientInstance {
         return null;
     }
 
+    /**
+     * 从Topic关联的Broker中随机取一个Broker地址 
+     */
     public String findBrokerAddrByTopic(final String topic) {
         TopicRouteData topicRouteData = this.topicRouteTable.get(topic);
         if (topicRouteData != null) {
@@ -1112,6 +1128,7 @@ public class MQClientInstance {
             if (!brokers.isEmpty()) {
                 int index = random.nextInt(brokers.size());
                 BrokerData bd = brokers.get(index % brokers.size());
+                // 优先选择Master Broker
                 return bd.selectBrokerAddr();
             }
         }

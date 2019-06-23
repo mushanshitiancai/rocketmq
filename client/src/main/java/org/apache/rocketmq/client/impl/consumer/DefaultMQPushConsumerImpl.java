@@ -594,8 +594,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
     }
 
     /**
-     * 消费者启动流程
-     * @throws MQClientException
+     * Push Consumer 启动流程
      */
     public synchronized void start() throws MQClientException {
         switch (this.serviceState) {
@@ -615,11 +614,13 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
                 // 新建or获取MQClientInstance实例
                 this.mQClientFactory = MQClientManager.getInstance().getAndCreateMQClientInstance(this.defaultMQPushConsumer, this.rpcHook);
 
+                // 构造消息负载均衡类
                 this.rebalanceImpl.setConsumerGroup(this.defaultMQPushConsumer.getConsumerGroup());
                 this.rebalanceImpl.setMessageModel(this.defaultMQPushConsumer.getMessageModel());
                 this.rebalanceImpl.setAllocateMessageQueueStrategy(this.defaultMQPushConsumer.getAllocateMessageQueueStrategy());
                 this.rebalanceImpl.setmQClientFactory(this.mQClientFactory);
 
+                // 构造PullAPI调用类
                 this.pullAPIWrapper = new PullAPIWrapper(
                     mQClientFactory,
                     this.defaultMQPushConsumer.getConsumerGroup(), isUnitMode());
@@ -647,10 +648,12 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
 
                 // 创建消费端消费线程服务
                 if (this.getMessageListenerInner() instanceof MessageListenerOrderly) {
+                    // 如果用户指定的Listener是顺序消费Listener，则实例化ConsumeMessageOrderlyService
                     this.consumeOrderly = true;
                     this.consumeMessageService =
                         new ConsumeMessageOrderlyService(this, (MessageListenerOrderly) this.getMessageListenerInner());
                 } else if (this.getMessageListenerInner() instanceof MessageListenerConcurrently) {
+                    // 如果用户指定的Listener是并发消费Listener，则实例化ConsumeMessageConcurrentlyService
                     this.consumeOrderly = false;
                     this.consumeMessageService =
                         new ConsumeMessageConcurrentlyService(this, (MessageListenerConcurrently) this.getMessageListenerInner());
@@ -667,6 +670,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
                         null);
                 }
 
+                // 启动MQ客户端，里面会启动消息拉取线程
                 mQClientFactory.start();
                 log.info("the consumer [{}] start OK.", this.defaultMQPushConsumer.getConsumerGroup());
                 this.serviceState = ServiceState.RUNNING;
@@ -685,6 +689,9 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
         this.updateTopicSubscribeInfoWhenSubscriptionChanged();
         this.mQClientFactory.checkClientInBroker();
         this.mQClientFactory.sendHeartbeatToAllBrokerWithLock();
+        
+        // 立即出发消息队列负载均衡操作
+        // 这样会计算当前Consumer处理那些Queue，然后将Queue的拉取请求添加到拉取线程中，正式开启拉取循环
         this.mQClientFactory.rebalanceImmediately();
     }
 
@@ -910,11 +917,23 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
         return this.rebalanceImpl.getSubscriptionInner();
     }
 
+    /**
+     * 订阅一个Topic
+     * 
+     * @param topic         Topic名称
+     * @param subExpression 订阅表达式，如果为空或者*表示订阅Topic下的所有消息，或者支持"tag1 || tag2 || tag3"这样的表达式
+     * @throws MQClientException
+     */
     public void subscribe(String topic, String subExpression) throws MQClientException {
         try {
+            // 构造订阅对象
             SubscriptionData subscriptionData = FilterAPI.buildSubscriptionData(this.defaultMQPushConsumer.getConsumerGroup(),
                 topic, subExpression);
+            
+            // 添加订阅对象到消息队列负载均衡器中
             this.rebalanceImpl.getSubscriptionInner().put(topic, subscriptionData);
+            
+            // 如果是Consumer启动后订阅消息，则立马发送心跳通知所有Broker
             if (this.mQClientFactory != null) {
                 this.mQClientFactory.sendHeartbeatToAllBrokerWithLock();
             }
@@ -1041,6 +1060,9 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
         return subSet;
     }
 
+    /**
+     * 执行消息队列负载均衡操作
+     */
     @Override
     public void doRebalance() {
         if (!this.pause) {

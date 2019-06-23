@@ -16,9 +16,6 @@
  */
 package org.apache.rocketmq.client.consumer;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
 import org.apache.rocketmq.client.ClientConfig;
 import org.apache.rocketmq.client.QueryResult;
 import org.apache.rocketmq.client.consumer.listener.MessageListener;
@@ -44,6 +41,10 @@ import org.apache.rocketmq.common.protocol.heartbeat.MessageModel;
 import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.remoting.RPCHook;
 import org.apache.rocketmq.remoting.exception.RemotingException;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * In most scenarios, this is the mostly recommended class to consume messages.
@@ -94,9 +95,11 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
 
     /**
      * Consuming point on consumer booting.
+     * 指定Consumer启动时从哪里开始消费
      * </p>
      *
      * There are three consuming points:
+     * 有三种配置：
      * <ul>
      * <li>
      * <code>CONSUME_FROM_LAST_OFFSET</code>: consumer clients pick up where it stopped previously.
@@ -111,6 +114,9 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
      * <li>
      * if the earliest message being subscribed has expired, consuming will start from the latest
      * messages, meaning messages born prior to the booting timestamp would be ignored.
+     * CONSUME_FROM_LAST_OFFSET：Consumer从上一次停止的地方开始消费。
+     * 如果Consumer是新启动的一个Consumer，根据所属的消费者组，有两种可能：
+     * 1. 
      * </li>
      * </ol>
      * </li>
@@ -746,11 +752,10 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
     }
 
     /**
-     * Subscribe a topic to consuming subscription.
+     * 订阅一个Topic
      *
-     * @param topic topic to subscribe.
-     * @param subExpression subscription expression.it only support or operation such as "tag1 || tag2 || tag3" <br>
-     * if null or * expression,meaning subscribe all
+     * @param topic         Topic名称
+     * @param subExpression 订阅表达式，如果为空或者*表示订阅Topic下的所有消息，或者支持"tag1 || tag2 || tag3"这样的表达式
      * @throws MQClientException if there is any client error.
      */
     @Override

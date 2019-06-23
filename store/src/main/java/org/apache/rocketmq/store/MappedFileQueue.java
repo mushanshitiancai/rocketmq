@@ -437,11 +437,6 @@ public class MappedFileQueue {
             
             // 调用MappedFile的flush方法
             int offset = mappedFile.flush(flushLeastPages);
-            try {
-                Thread.sleep(100);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
 
             // 计算全局偏移量
             long where = mappedFile.getFileFromOffset() + offset;

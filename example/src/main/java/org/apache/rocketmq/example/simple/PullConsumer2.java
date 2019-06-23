@@ -16,13 +16,14 @@
  */
 package org.apache.rocketmq.example.simple;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
 import org.apache.rocketmq.client.consumer.DefaultMQPullConsumer;
 import org.apache.rocketmq.client.consumer.PullResult;
 import org.apache.rocketmq.client.exception.MQClientException;
 import org.apache.rocketmq.common.message.MessageQueue;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Pull模式消费端例子
@@ -33,7 +34,7 @@ import org.apache.rocketmq.common.message.MessageQueue;
  * 2. 如果第一个Queue一直有消息，则一直不会处理之后的Queue？
  * ==> 是的 TODO
  */
-public class PullConsumer {
+public class PullConsumer2 {
     /**
      * Pull模式需要自己保存每个Queue的offset
      */

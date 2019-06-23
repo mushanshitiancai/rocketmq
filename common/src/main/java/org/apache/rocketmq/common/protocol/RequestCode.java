@@ -25,6 +25,9 @@ public class RequestCode {
 
     public static final int QUERY_MESSAGE = 12;
     public static final int QUERY_BROKER_OFFSET = 13;
+    /**
+     * 根据Topic名，消费者组名称，QueueId从Broker获取消费者offset（TODO 是从随机的Broker中获取么？）
+     */
     public static final int QUERY_CONSUMER_OFFSET = 14;
     public static final int UPDATE_CONSUMER_OFFSET = 15;
     public static final int UPDATE_AND_CREATE_TOPIC = 17;
@@ -55,6 +58,9 @@ public class RequestCode {
     public static final int CONSUMER_SEND_MSG_BACK = 36;
 
     public static final int END_TRANSACTION = 37;
+    /**
+     * 获取消费者组包含的所有消费者Id
+     */
     public static final int GET_CONSUMER_LIST_BY_GROUP = 38;
 
     public static final int CHECK_TRANSACTION_STATE = 39;

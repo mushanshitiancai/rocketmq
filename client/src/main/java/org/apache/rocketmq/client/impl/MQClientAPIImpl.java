@@ -739,6 +739,9 @@ public class MQClientAPIImpl {
         throw new MQBrokerException(response.getCode(), response.getRemark());
     }
 
+    /**
+     * 获取消费者组包含的所有消费者Id
+     */
     public List<String> getConsumerIdListByGroup(
         final String addr,
         final String consumerGroup,
@@ -815,6 +818,17 @@ public class MQClientAPIImpl {
         throw new MQBrokerException(response.getCode(), response.getRemark());
     }
 
+    /**
+     * 根据Topic名，消费者组名称，QueueId从Broker获取消费者offset（TODO 是从随机的Broker中获取么？）
+     * 
+     * @param addr
+     * @param requestHeader
+     * @param timeoutMillis
+     * @return
+     * @throws RemotingException
+     * @throws MQBrokerException
+     * @throws InterruptedException
+     */
     public long queryConsumerOffset(
         final String addr,
         final QueryConsumerOffsetRequestHeader requestHeader,
