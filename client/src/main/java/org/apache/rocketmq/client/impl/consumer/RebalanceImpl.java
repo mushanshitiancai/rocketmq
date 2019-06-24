@@ -317,6 +317,7 @@ public abstract class RebalanceImpl {
                         allocateResultSet.addAll(allocateResult);
                     }
 
+                    // 根据负载均衡得到的MessageQueue列表，更新本地的ProcessQueue。如果发送更新操作，返回true
                     boolean changed = this.updateProcessQueueTableInRebalance(topic, allocateResultSet, isOrder);
                     if (changed) {
                         log.info(
@@ -349,7 +350,7 @@ public abstract class RebalanceImpl {
     }
 
     /**
-     * 根据负载均衡得到的MessageQueue列表，更新本地的ProcessQueue
+     * 根据负载均衡得到的MessageQueue列表，更新本地的ProcessQueue。如果发送更新操作，返回true
      * 
      * @param topic
      * @param mqSet
@@ -433,6 +434,7 @@ public abstract class RebalanceImpl {
             }
         }
 
+        // 添加PullRequest到PullMessageService，使其开始进入拉取循环
         this.dispatchPullRequest(pullRequestList);
 
         return changed;

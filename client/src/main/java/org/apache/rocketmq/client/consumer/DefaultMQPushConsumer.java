@@ -232,7 +232,7 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
     private int consumeMessageBatchMaxSize = 1;
 
     /**
-     * Batch pull size
+     * Pull模式默认每次从Broker拉取32条消息
      */
     private int pullBatchSize = 32;
 

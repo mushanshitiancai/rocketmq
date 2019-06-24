@@ -52,6 +52,8 @@ public class LocalFileOffsetStore implements OffsetStore {
     public LocalFileOffsetStore(MQClientInstance mQClientFactory, String groupName) {
         this.mQClientFactory = mQClientFactory;
         this.groupName = groupName;
+        
+        // offset数据保存在{storePath}/{clientId}/{groupName}/offsets.json中
         this.storePath = LOCAL_OFFSET_STORE_DIR + File.separator +
             this.mQClientFactory.getClientId() + File.separator +
             this.groupName + File.separator +
@@ -92,6 +94,9 @@ public class LocalFileOffsetStore implements OffsetStore {
         }
     }
 
+    /**
+     * 读取offset
+     */
     @Override
     public long readOffset(final MessageQueue mq, final ReadOffsetType type) {
         if (mq != null) {
@@ -106,6 +111,7 @@ public class LocalFileOffsetStore implements OffsetStore {
                     }
                 }
                 case READ_FROM_STORE: {
+                    // 从本地持久化存储中读取保存的offset
                     OffsetSerializeWrapper offsetSerializeWrapper;
                     try {
                         offsetSerializeWrapper = this.readLocalOffset();

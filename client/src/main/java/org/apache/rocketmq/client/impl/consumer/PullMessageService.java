@@ -80,7 +80,7 @@ public class PullMessageService extends ServiceThread {
      * 从PullRequest中拉取消息
      */
     private void pullMessage(final PullRequest pullRequest) {
-        // 取出DefaultMQPushConsumerImpl，拉取的逻辑实现在其中（感觉有点乱？）
+        // 取出DefaultMQPushConsumerImpl，拉取的逻辑实现在其中
         final MQConsumerInner consumer = this.mQClientFactory.selectConsumer(pullRequest.getConsumerGroup());
         if (consumer != null) {
             DefaultMQPushConsumerImpl impl = (DefaultMQPushConsumerImpl) consumer;
