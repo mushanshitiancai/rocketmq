@@ -251,7 +251,11 @@ public class MQClientInstance {
         }
     }
 
+    /**
+     * MQClient的定时任务
+     */
     private void startScheduledTask() {
+        // 如果配置文件没有指定NameServer地址，则每2分钟从指定的域名获取NameServer地址
         if (null == this.clientConfig.getNamesrvAddr()) {
             this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
 
@@ -266,6 +270,7 @@ public class MQClientInstance {
             }, 1000 * 10, 1000 * 60 * 2, TimeUnit.MILLISECONDS);
         }
 
+        // 默认每30秒从NameServer更新路由信息
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
 
             @Override
@@ -278,6 +283,7 @@ public class MQClientInstance {
             }
         }, 10, this.clientConfig.getPollNameServerInterval(), TimeUnit.MILLISECONDS);
 
+        // 默认每30s发送心跳到Broker
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
 
             @Override
@@ -291,6 +297,7 @@ public class MQClientInstance {
             }
         }, 1000, this.clientConfig.getHeartbeatBrokerInterval(), TimeUnit.MILLISECONDS);
 
+        // 默认每5s持久化Consumer offset
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
 
             @Override
@@ -303,6 +310,7 @@ public class MQClientInstance {
             }
         }, 1000 * 10, this.clientConfig.getPersistConsumerOffsetInterval(), TimeUnit.MILLISECONDS);
 
+        // 每1分钟调整线程池大小（目前看是无用逻辑）
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
 
             @Override

@@ -53,9 +53,13 @@ public class ConsumeMessageConcurrentlyService implements ConsumeMessageService 
     private final DefaultMQPushConsumerImpl defaultMQPushConsumerImpl;
     private final DefaultMQPushConsumer defaultMQPushConsumer;
     private final MessageListenerConcurrently messageListener;
-    // 消费任务等待队列，长度为Integer.MAX_VALUE
+    /**
+     * 消费任务等待队列，长度为Integer.MAX_VALUE
+     */
     private final BlockingQueue<Runnable> consumeRequestQueue;
-    // 消费线程池
+    /** 
+     * 消费线程池
+     */
     private final ThreadPoolExecutor consumeExecutor;
     private final String consumerGroup;
 
@@ -71,6 +75,7 @@ public class ConsumeMessageConcurrentlyService implements ConsumeMessageService 
         this.consumerGroup = this.defaultMQPushConsumer.getConsumerGroup();
         this.consumeRequestQueue = new LinkedBlockingQueue<Runnable>();
 
+        // 实例化消费线程池
         this.consumeExecutor = new ThreadPoolExecutor(
             this.defaultMQPushConsumer.getConsumeThreadMin(),
             this.defaultMQPushConsumer.getConsumeThreadMax(),
@@ -314,8 +319,10 @@ public class ConsumeMessageConcurrentlyService implements ConsumeMessageService 
                 break;
         }
 
+        // 消费完成了，从ProcessQueue中移除消费完成的Message，返回下次消费offset
         long offset = consumeRequest.getProcessQueue().removeMessage(consumeRequest.getMsgs());
         if (offset >= 0 && !consumeRequest.getProcessQueue().isDropped()) {
+            // 更新offset到内存中
             this.defaultMQPushConsumerImpl.getOffsetStore().updateOffset(consumeRequest.getMessageQueue(), offset, true);
         }
     }

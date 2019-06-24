@@ -16,23 +16,20 @@
  */
 package org.apache.rocketmq.client.impl.consumer;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
+import org.apache.rocketmq.client.consumer.DefaultMQPushConsumer;
+import org.apache.rocketmq.client.log.ClientLogger;
+import org.apache.rocketmq.common.message.MessageAccessor;
+import org.apache.rocketmq.common.message.MessageConst;
+import org.apache.rocketmq.common.message.MessageExt;
+import org.apache.rocketmq.common.protocol.body.ProcessQueueInfo;
+import org.apache.rocketmq.logging.InternalLogger;
+
+import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-import org.apache.rocketmq.client.consumer.DefaultMQPushConsumer;
-import org.apache.rocketmq.client.log.ClientLogger;
-import org.apache.rocketmq.logging.InternalLogger;
-import org.apache.rocketmq.common.message.MessageAccessor;
-import org.apache.rocketmq.common.message.MessageConst;
-import org.apache.rocketmq.common.message.MessageExt;
-import org.apache.rocketmq.common.protocol.body.ProcessQueueInfo;
 
 /**
  * ProcessQueue是MessageQueue在本地的快照，使用TreeMap实现
@@ -213,7 +210,9 @@ public class ProcessQueue {
      * 删除指定消息，同时更新统计信息
      *
      * @param msgs
-     * @return 队列中最小的queueOffset？
+     * @return 返回下次消费offset。
+     * 如果ProcessQueue还剩有消息，则返回第一个消息的offset，
+     * 如果删除后ProcessQueue没有消息剩余，则返回删除前最大消息offset+1
      */
     public long removeMessage(final List<MessageExt> msgs) {
         long result = -1;

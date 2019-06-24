@@ -34,11 +34,13 @@ public interface OffsetStore {
 
     /**
      * Update the offset,store it in memory
+     * 调用时机：ConsumeMessageService中消费完成的流程中
      */
     void updateOffset(final MessageQueue mq, final long offset, final boolean increaseOnly);
 
     /**
      * Get offset from local storage
+     * 调用时机：RebalanceImpl中添加PullRequest时
      *
      * @return The fetched offset
      */
