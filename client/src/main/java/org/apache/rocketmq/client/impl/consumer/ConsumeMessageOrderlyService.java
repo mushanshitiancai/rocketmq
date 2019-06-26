@@ -484,12 +484,20 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
                             try {
                                 // 这里还有一把锁，是避免用户正在消费时，从Broker上释放锁
                                 this.processQueue.getLockConsume().lock();
+                                // 这句话很关键，在拿到粒度最细的一把锁后，再次检查ProcessQueue是否被drop，
+                                // ProcessQueue在重新负载均衡时，发现不再负责时，第一个操作是设置drop状态，
+                                // 然后进行上报offset，释放Broker Queue锁的流程
+                                // 通过这句话可以保证，本Consumer重新负载均衡一旦发现Queue不再需要负责，就不会进行任何消费，
                                 if (this.processQueue.isDropped()) {
                                     log.warn("consumeMessage, the message queue not be able to consume, because it's dropped. {}",
                                         this.messageQueue);
                                     break;
                                 }
 
+                                // TODO 在这个时候，如果ProcessQueue被drop，则当前这一批的消息可能被新Consumer重复消费
+                                // 所以顺序消费的时候，consumeMessageBatchMaxSize一定要配置为1，
+                                // 这样只会有一个消息可能被重复消费，不会打破顺序消费的限制
+                                
                                 status = messageListener.consumeMessage(Collections.unmodifiableList(msgs), context);
                             } catch (Throwable e) {
                                 log.warn("consumeMessage exception: {} Group: {} Msgs: {} MQ: {}",
@@ -550,7 +558,7 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
                         }
                     }
                 } else {
-                    // 集群模式
+                    // 集群模式，并且没有获取到Broker的Queue锁，则要等一下再消费
                     if (this.processQueue.isDropped()) {
                         log.warn("the message queue not be able to consume, because it's dropped. {}", this.messageQueue);
                         return;

@@ -384,6 +384,7 @@ public abstract class RebalanceImpl {
             if (mq.getTopic().equals(topic)) {
                 // 如果本地的ProcessQueue对应的MessageQueue不在本地负载均衡分配的MessageQueue中，则需要删除这个ProcessQueue
                 if (!mqSet.contains(mq)) {
+                    // 设置删除状态，是关键的状态变量
                     pq.setDropped(true);
                     // 
                     if (this.removeUnnecessaryMessageQueue(mq, pq)) {
