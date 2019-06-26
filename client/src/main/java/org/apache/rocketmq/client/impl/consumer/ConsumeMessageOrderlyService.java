@@ -496,7 +496,7 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
 
                                 // TODO 在这个时候，如果ProcessQueue被drop，则当前这一批的消息可能被新Consumer重复消费
                                 // 所以顺序消费的时候，consumeMessageBatchMaxSize一定要配置为1，
-                                // 这样只会有一个消息可能被重复消费，不会打破顺序消费的限制
+                                // 这样只会有一个消息可能被重复消费，不会打破顺序消费的语义
                                 
                                 status = messageListener.consumeMessage(Collections.unmodifiableList(msgs), context);
                             } catch (Throwable e) {
