@@ -35,8 +35,14 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  * ProcessQueue是MessageQueue在本地的快照，使用TreeMap实现
  */
 public class ProcessQueue {
+    /**
+     * 顺序消费，Queue锁过期时间。默认30秒
+     */
     public final static long REBALANCE_LOCK_MAX_LIVE_TIME =
         Long.parseLong(System.getProperty("rocketmq.client.rebalance.lockMaxLiveTime", "30000"));
+    /**
+     * 顺序消费，Queue获取锁的间隔时间。默认20秒，与重新负载均衡时间相等
+     */
     public final static long REBALANCE_LOCK_INTERVAL = Long.parseLong(System.getProperty("rocketmq.client.rebalance.lockInterval", "20000"));
     private final static long PULL_MAX_IDLE_TIME = Long.parseLong(System.getProperty("rocketmq.client.pull.pullMaxIdleTime", "120000"));
     private final InternalLogger log = ClientLogger.getLog();

@@ -86,6 +86,7 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
     }
 
     public void start() {
+        // 如果是集群模式，每20秒获取一次MessageQueue的锁 TODO
         if (MessageModel.CLUSTERING.equals(ConsumeMessageOrderlyService.this.defaultMQPushConsumerImpl.messageModel())) {
             this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
                 @Override
@@ -417,8 +418,13 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
                 return;
             }
 
+            // 获取MessageQueue的锁对象，实现同一个MessageQueue串行消费
             final Object objLock = messageQueueLock.fetchLockObject(this.messageQueue);
             synchronized (objLock) {
+                // 广播模式，Consumer之间无竞争，本地保证串行即可，直接进行消费
+                // 而如果是集群模式，Consumer之间存在竞争，随着重新负载均衡，一个Queue可能在不同的Consumer之间切换，
+                // 这种情况如果不进行协调，会导致无法保证顺序消费，所以这里还需要查看这个Queue是否从Broker获取了锁，
+                // 只有获取了锁，锁未过期，才可以进行消费
                 if (MessageModel.BROADCASTING.equals(ConsumeMessageOrderlyService.this.defaultMQPushConsumerImpl.messageModel())
                     || (this.processQueue.isLocked() && !this.processQueue.isLockExpired())) {
                     final long beginTime = System.currentTimeMillis();
@@ -476,6 +482,7 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
                             ConsumeReturnType returnType = ConsumeReturnType.SUCCESS;
                             boolean hasException = false;
                             try {
+                                // 这里还有一把锁，是避免用户正在消费时，从Broker上释放锁
                                 this.processQueue.getLockConsume().lock();
                                 if (this.processQueue.isDropped()) {
                                     log.warn("consumeMessage, the message queue not be able to consume, because it's dropped. {}",
@@ -543,6 +550,7 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
                         }
                     }
                 } else {
+                    // 集群模式
                     if (this.processQueue.isDropped()) {
                         log.warn("the message queue not be able to consume, because it's dropped. {}", this.messageQueue);
                         return;

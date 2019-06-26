@@ -70,6 +70,9 @@ public abstract class RebalanceImpl {
         this.mQClientFactory = mQClientFactory;
     }
 
+    /**
+     * 从Broker释放Queue的锁
+     */
     public void unlock(final MessageQueue mq, final boolean oneway) {
         FindBrokerResult findBrokerResult = this.mQClientFactory.findBrokerAddressInSubscribe(mq.getBrokerName(), MixAll.MASTER_ID, true);
         if (findBrokerResult != null) {
@@ -172,7 +175,12 @@ public abstract class RebalanceImpl {
         return false;
     }
 
+    /**
+     * 从Broker拿到本地正在进行消费的MessageQueue的锁
+     * 调用时机：ConsumeMessageOrderlyService#lockMQPeriodically()，会每隔20s获取一次锁
+     */
     public void lockAll() {
+        // 拿到本地ProcessQueue对应的MessageQueue，然后按照Broker名称归类
         HashMap<String, Set<MessageQueue>> brokerMqs = this.buildProcessQueueTableByBrokerName();
 
         Iterator<Entry<String, Set<MessageQueue>>> it = brokerMqs.entrySet().iterator();
@@ -184,6 +192,7 @@ public abstract class RebalanceImpl {
             if (mqs.isEmpty())
                 continue;
 
+            // 根据Broker名称拿到Master Broker的地址
             FindBrokerResult findBrokerResult = this.mQClientFactory.findBrokerAddressInSubscribe(brokerName, MixAll.MASTER_ID, true);
             if (findBrokerResult != null) {
                 LockBatchRequestBody requestBody = new LockBatchRequestBody();
@@ -192,9 +201,11 @@ public abstract class RebalanceImpl {
                 requestBody.setMqSet(mqs);
 
                 try {
+                    // 向Broker申请锁
                     Set<MessageQueue> lockOKMQSet =
                         this.mQClientFactory.getMQClientAPIImpl().lockBatchMQ(findBrokerResult.getBrokerAddr(), requestBody, 1000);
 
+                    // 返回的MessageQueue表示获取到锁，设置ProcessQueue状态为锁定状态
                     for (MessageQueue mq : lockOKMQSet) {
                         ProcessQueue processQueue = this.processQueueTable.get(mq);
                         if (processQueue != null) {
@@ -206,6 +217,7 @@ public abstract class RebalanceImpl {
                             processQueue.setLastLockTimestamp(System.currentTimeMillis());
                         }
                     }
+                    // 存在获取锁失败的情况，要设置ProcessQueue状态为未锁定
                     for (MessageQueue mq : mqs) {
                         if (!lockOKMQSet.contains(mq)) {
                             ProcessQueue processQueue = this.processQueueTable.get(mq);
@@ -256,6 +268,7 @@ public abstract class RebalanceImpl {
     private void rebalanceByTopic(final String topic, final boolean isOrder) {
         switch (messageModel) {
             case BROADCASTING: {
+                // 广播模式不需要负载均衡，不过Broker的Queue个数可能变化，所以还是需要更新一下
                 Set<MessageQueue> mqSet = this.topicSubscribeInfoTable.get(topic);
                 if (mqSet != null) {
                     boolean changed = this.updateProcessQueueTableInRebalance(topic, mqSet, isOrder);
@@ -372,6 +385,7 @@ public abstract class RebalanceImpl {
                 // 如果本地的ProcessQueue对应的MessageQueue不在本地负载均衡分配的MessageQueue中，则需要删除这个ProcessQueue
                 if (!mqSet.contains(mq)) {
                     pq.setDropped(true);
+                    // 
                     if (this.removeUnnecessaryMessageQueue(mq, pq)) {
                         it.remove();
                         changed = true;

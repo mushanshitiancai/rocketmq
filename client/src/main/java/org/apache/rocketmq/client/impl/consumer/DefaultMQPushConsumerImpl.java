@@ -81,7 +81,7 @@ import org.apache.rocketmq.remoting.exception.RemotingException;
 
 public class DefaultMQPushConsumerImpl implements MQConsumerInner {
     /**
-     * Delay some time when exception occur
+     * 拉取异常时，默认等到3秒后再次拉取
      */
     private static final long PULL_TIME_DELAY_MILLS_WHEN_EXCEPTION = 3000;
     /**
@@ -291,7 +291,13 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
                 return;
             }
         } else {
+            // 如果是顺序消费，则拉取前需要保证从Broker拿到了锁才能进行拉取
             if (processQueue.isLocked()) {
+                // 因为顺序消费，对offset有严格要求，要紧接着之前的Consumer进行消费，
+                // 前任Consumer在重新负载均衡后，对于不再负责的Queue会 1.上报最新消费的offset 2.释放锁
+                // 所以当前Consumer需要在拿到锁之后，再次获取offset
+                // TODO 问题：前任Consumer异常了，这个流程是否就出问题了？
+                // TODO 问题：前任释放锁时，是需要等待用户消费完成的，如果用户那条消息返回Later，是个什么效果
                 if (!pullRequest.isLockedFirst()) {
                     final long offset = this.rebalanceImpl.computePullFromWhere(pullRequest.getMessageQueue());
                     boolean brokerBusy = offset < pullRequest.getNextOffset();
@@ -302,10 +308,12 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
                             pullRequest, offset);
                     }
 
+                    // 设置状态位，因为这个流程只要执行一次
                     pullRequest.setLockedFirst(true);
                     pullRequest.setNextOffset(offset);
                 }
             } else {
+                // 如果还没有拿到锁，默认等待3秒后再次拉取
                 this.executePullRequestLater(pullRequest, PULL_TIME_DELAY_MILLS_WHEN_EXCEPTION);
                 log.info("pull message later because not locked in broker, {}", pullRequest);
                 return;
