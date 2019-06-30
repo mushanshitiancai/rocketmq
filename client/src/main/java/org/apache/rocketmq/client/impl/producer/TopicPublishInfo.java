@@ -66,10 +66,18 @@ public class TopicPublishInfo {
         this.haveTopicRouterInfo = haveTopicRouterInfo;
     }
 
+    /**
+     * 没有开启故障延迟机制，选择MessageQueue的策略
+     * 
+     * @param lastBrokerName
+     * @return
+     */
     public MessageQueue selectOneMessageQueue(final String lastBrokerName) {
+        // 如果是第一次选择，则根据当前索引从Queue列表中选一个
         if (lastBrokerName == null) {
             return selectOneMessageQueue();
         } else {
+            // 如果不是第一次选择，则是重试发送的流程，需要避开失败的Broker
             int index = this.sendWhichQueue.getAndIncrement();
             for (int i = 0; i < this.messageQueueList.size(); i++) {
                 int pos = Math.abs(index++) % this.messageQueueList.size();
@@ -84,6 +92,11 @@ public class TopicPublishInfo {
         }
     }
 
+    /**
+     * 没有开启故障延迟机制，**第一次**选择MessageQueue的策略
+     * 
+     * @return
+     */
     public MessageQueue selectOneMessageQueue() {
         int index = this.sendWhichQueue.getAndIncrement();
         int pos = Math.abs(index) % this.messageQueueList.size();

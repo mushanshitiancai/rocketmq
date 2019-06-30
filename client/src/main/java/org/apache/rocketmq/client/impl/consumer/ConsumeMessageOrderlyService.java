@@ -259,6 +259,15 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
         }, timeMillis, TimeUnit.MILLISECONDS);
     }
 
+    /**
+     * 顺序消费，用户消费完一批消息后的处理流程
+     * 
+     * @param msgs
+     * @param status
+     * @param context
+     * @param consumeRequest
+     * @return
+     */
     public boolean processConsumeResult(
         final List<MessageExt> msgs,
         final ConsumeOrderlyStatus status,

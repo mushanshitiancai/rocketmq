@@ -602,6 +602,7 @@ public class CommitLog {
                 return new PutMessageResult(PutMessageStatus.CREATE_MAPEDFILE_FAILED, null);
             }
 
+            // ★添加消息到CommitLog
             result = mappedFile.appendMessage(msg, this.appendMessageCallback);
             switch (result.getStatus()) {
                 case PUT_OK:
@@ -651,7 +652,9 @@ public class CommitLog {
         storeStatsService.getSinglePutMessageTopicTimesTotal(msg.getTopic()).incrementAndGet();
         storeStatsService.getSinglePutMessageTopicSizeTotal(topic).addAndGet(result.getWroteBytes());
 
+        // ★处理刷盘
         handleDiskFlush(result, putMessageResult, msg);
+        // ★处理同步
         handleHA(result, putMessageResult, msg);
 
         return putMessageResult;
@@ -703,13 +706,12 @@ public class CommitLog {
      * 消息主从复制处理逻辑
      */
     public void handleHA(AppendMessageResult result, PutMessageResult putMessageResult, MessageExt messageExt) {
-        // 如果当前Broker是Mater才执行这段逻辑
+        // 如果当前Broker是同步Mater才执行这段逻辑
         if (BrokerRole.SYNC_MASTER == this.defaultMessageStore.getMessageStoreConfig().getBrokerRole()) {
             HAService service = this.defaultMessageStore.getHaService();
             // 如果消息的isWaitStoreMsgOK == true
             if (messageExt.isWaitStoreMsgOK()) {
-                // Determine whether to wait
-                
+                // 如果有在线的，落后数据不大于256MB的Slave
                 if (service.isSlaveOK(result.getWroteOffset() + result.getWroteBytes())) {
                     GroupCommitRequest request = new GroupCommitRequest(result.getWroteOffset() + result.getWroteBytes());
                     service.putRequest(request);
@@ -722,9 +724,8 @@ public class CommitLog {
                         putMessageResult.setPutMessageStatus(PutMessageStatus.FLUSH_SLAVE_TIMEOUT);
                     }
                 }
-                // Slave problem
                 else {
-                    // Tell the producer, slave not available
+                    // 如果Slave失效，则返回失败
                     putMessageResult.setPutMessageStatus(PutMessageStatus.SLAVE_NOT_AVAILABLE);
                 }
             }

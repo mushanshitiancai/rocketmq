@@ -144,6 +144,9 @@ public class MessageStoreConfig {
     private int haTransferBatchSize = 1024 * 32;
     @ImportantField
     private String haMasterAddress = null;
+    /**
+     * 允许从服务器落户的最大偏移字节数,默认为256M。超过该值则表示该Slave不可用	
+     */
     private int haSlaveFallbehindMax = 1024 * 1024 * 256;
     @ImportantField
     private BrokerRole brokerRole = BrokerRole.ASYNC_MASTER;

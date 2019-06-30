@@ -104,18 +104,12 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
     private int compressMsgBodyOverHowmuch = 1024 * 4;
 
     /**
-     * Maximum number of retry to perform internally before claiming sending failure in synchronous mode.
-     * </p>
-     *
-     * This may potentially cause message duplication which is up to application developers to resolve.
+     * 同步模式发送失败的最大重试次数。重试可能导致消息重复
      */
     private int retryTimesWhenSendFailed = 2;
 
     /**
-     * Maximum number of retry to perform internally before claiming sending failure in asynchronous mode.
-     * </p>
-     *
-     * This may potentially cause message duplication which is up to application developers to resolve.
+     * 异步模式发送失败的最大重试次数。重试可能导致消息重复
      */
     private int retryTimesWhenSendAsyncFailed = 2;
 

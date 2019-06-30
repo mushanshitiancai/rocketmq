@@ -77,13 +77,14 @@ public class HAService {
     }
 
     /**
-     * 判断slave的状态
+     * 判断是否有可用的Slave
      * 
      * @param masterPutWhere master当前最新的全局写入偏移量
      * @return
      */
     public boolean isSlaveOK(final long masterPutWhere) {
         boolean result = this.connectionCount.get() > 0;
+        // haSlaveFallbehindMax为允许从服务器落户的最大偏移字节数,默认为256M。超过该值则表示该Slave不可用	
         result =
             result
                 && ((masterPutWhere - this.push2SlaveMaxOffset.get()) < this.defaultMessageStore
