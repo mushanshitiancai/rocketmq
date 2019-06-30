@@ -558,7 +558,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                             case ONEWAY:
                                 return null;
                             case SYNC:
-                                // 如果发送服务端响应失败，进行重试（默认不会进行重试）
+                                // 如果发送成功，但是刷盘或者同步失败了，如果配置开启，则使用别的Broker进行重试，默认这种场景不会重试
                                 if (sendResult.getSendStatus() != SendStatus.SEND_OK) {
                                     if (this.defaultMQProducer.isRetryAnotherBrokerWhenNotStoreOK()) {
                                         continue;
@@ -589,6 +589,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                         log.warn(String.format("sendKernelImpl exception, resend at once, InvokeID: %s, RT: %sms, Broker: %s", invokeID, endTimestamp - beginTimestampPrev, mq), e);
                         log.warn(msg.toString());
                         exception = e;
+                        // Broker快速失败或者繁忙之类的错误，是会进行重试的
                         switch (e.getResponseCode()) {
                             case ResponseCode.TOPIC_NOT_EXIST:
                             case ResponseCode.SERVICE_NOT_AVAILABLE:
