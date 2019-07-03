@@ -205,6 +205,7 @@ public class MappedFileQueue {
             createOffset = mappedFileLast.getFileFromOffset() + this.mappedFileSize;
         }
 
+        // 新建
         if (createOffset != -1 && needCreate) {
             String nextFilePath = this.storePath + File.separator + UtilAll.offset2FileName(createOffset);
             String nextNextFilePath = this.storePath + File.separator
@@ -212,9 +213,14 @@ public class MappedFileQueue {
             MappedFile mappedFile = null;
 
             if (this.allocateMappedFileService != null) {
+                // 如果指定了AllocateMappedFileService，则用这个服务来申请MappedFile
+                // 只有CommitLog会走这个逻辑
+                // 只有在这个逻辑中，才会新建开启TransientStorePool的MappedFile
                 mappedFile = this.allocateMappedFileService.putRequestAndReturnMappedFile(nextFilePath,
                     nextNextFilePath, this.mappedFileSize);
             } else {
+                // 没有指定AllocateMappedFileService时，直接新建MappedFile
+                // 内部逻辑是直接用RandomAccessFile.map方法来新建MappedByteBuffer
                 try {
                     mappedFile = new MappedFile(nextFilePath, this.mappedFileSize);
                 } catch (IOException e) {

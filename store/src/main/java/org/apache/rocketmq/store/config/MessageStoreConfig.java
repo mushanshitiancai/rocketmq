@@ -98,6 +98,9 @@ public class MessageStoreConfig {
     // 提交CommitLog时，至少的提交页面数。异步刷盘（有暂存区）模式下有效。默认至少4个页面。
     private int commitCommitLogLeastPages = 4;
     // Flush page size when the disk in warming state
+    /**
+     * 预热mmap时，如果是同步刷盘，每多少个页要flush一下
+     */
     private int flushLeastPagesWhenWarmMapedFile = 1024 / 4 * 16;
     // How many pages are to be flushed when flush ConsumeQueue
     private int flushConsumeQueueLeastPages = 2;
@@ -160,6 +163,9 @@ public class MessageStoreConfig {
     private long flushDelayOffsetInterval = 1000 * 10;
     @ImportantField
     private boolean cleanFileForciblyEnable = true;
+    /**
+     * 是否预热MappedFile，默认不预热
+     */
     private boolean warmMapedFileEnable = false;
     private boolean offsetCheckInSlave = false;
     private boolean debugLockEnable = false;

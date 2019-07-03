@@ -45,6 +45,7 @@ public class TransientStorePool {
 
     /**
      * It's a heavy init method.
+     * TransientStorePool初始化逻辑，开启了TransientStorePool机制才会生效
      */
     public void init() {
         for (int i = 0; i < poolSize; i++) {

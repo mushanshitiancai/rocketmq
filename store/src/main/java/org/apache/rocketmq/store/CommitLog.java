@@ -77,6 +77,7 @@ public class CommitLog {
             this.flushCommitLogService = new FlushRealTimeService();
         }
 
+        // 如果开启TransientStorePool机制，使用该定时Commit线程
         this.commitLogService = new CommitRealTimeService();
 
         this.appendMessageCallback = new DefaultAppendMessageCallback(defaultMessageStore.getMessageStoreConfig().getMaxMessageSize());

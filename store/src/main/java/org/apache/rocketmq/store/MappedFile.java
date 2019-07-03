@@ -42,6 +42,9 @@ import org.apache.rocketmq.store.util.LibC;
 import sun.nio.ch.DirectBuffer;
 
 public class MappedFile extends ReferenceResource {
+    /**
+     * 默认页大小为4K
+     */
     public static final int OS_PAGE_SIZE = 1024 * 4;
     protected static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
 
@@ -162,7 +165,8 @@ public class MappedFile extends ReferenceResource {
         try {
             this.fileChannel = new RandomAccessFile(this.file, "rw").getChannel();
             
-            // TODO 这里一定会mmap，但是如果开启了transientStorePool，好像这个是没用的
+            // 这里一定会mmap，但是如果开启了transientStorePool，好像这个是没用的？
+            // -- 读取都是走mmap
             this.mappedByteBuffer = this.fileChannel.map(MapMode.READ_WRITE, 0, fileSize);
             
             TOTAL_MAPPED_VIRTUAL_MEMORY.addAndGet(fileSize);
@@ -533,12 +537,12 @@ public class MappedFile extends ReferenceResource {
         long time = System.currentTimeMillis();
         
         // 一个一个页的预热，预热的步骤是：
-        // 1. 
         for (int i = 0, j = 0; i < this.fileSize; i += MappedFile.OS_PAGE_SIZE, j++) {
-            
+            // 设置当前页的第一个字节为0
             byteBuffer.put(i, (byte) 0);
             
-            // force flush when flush disk type is sync
+            // 如果是同步刷盘，每4096个Page要刷盘一下
+            // TODO 为啥
             if (type == FlushDiskType.SYNC_FLUSH) {
                 if ((i / OS_PAGE_SIZE) - (flush / OS_PAGE_SIZE) >= pages) {
                     flush = i;
@@ -546,7 +550,7 @@ public class MappedFile extends ReferenceResource {
                 }
             }
 
-            // prevent gc 阻止GC？
+            // prevent gc TODO 阻止GC？
             if (j % 1000 == 0) {
                 log.info("j={}, costTime={}", j, System.currentTimeMillis() - time);
                 time = System.currentTimeMillis();
@@ -558,7 +562,7 @@ public class MappedFile extends ReferenceResource {
             }
         }
 
-        // force flush when prepare load finished
+        // 如果是同步刷盘，最后要刷盘一下
         if (type == FlushDiskType.SYNC_FLUSH) {
             log.info("mapped file warm-up done, force to disk, mappedFile={}, costTime={}",
                 this.getFileName(), System.currentTimeMillis() - beginTime);

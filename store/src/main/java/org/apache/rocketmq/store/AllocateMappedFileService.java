@@ -131,6 +131,9 @@ public class AllocateMappedFileService extends ServiceThread {
         }
     }
 
+    /**
+     * MappedFile分配线程主循环
+     */
     public void run() {
         log.info(this.getServiceName() + " service started");
 
@@ -141,7 +144,7 @@ public class AllocateMappedFileService extends ServiceThread {
     }
 
     /**
-     * Only interrupted by the external thread, will return false
+     * MappedFile分配操作
      */
     private boolean mmapOperation() {
         boolean isSuccess = false;
@@ -164,6 +167,7 @@ public class AllocateMappedFileService extends ServiceThread {
                 long beginTime = System.currentTimeMillis();
 
                 MappedFile mappedFile;
+                // 如果开启了暂存池，则会实例化开启TransientStorePool的MappedFile
                 if (messageStore.getMessageStoreConfig().isTransientStorePoolEnable()) {
                     try {
                         mappedFile = ServiceLoader.load(MappedFile.class).iterator().next();
@@ -173,6 +177,7 @@ public class AllocateMappedFileService extends ServiceThread {
                         mappedFile = new MappedFile(req.getFilePath(), req.getFileSize(), messageStore.getTransientStorePool());
                     }
                 } else {
+                    // 如果没有开启暂存池，实例化普通MappedFile
                     mappedFile = new MappedFile(req.getFilePath(), req.getFileSize());
                 }
 
@@ -183,7 +188,7 @@ public class AllocateMappedFileService extends ServiceThread {
                         + " " + req.getFilePath() + " " + req.getFileSize());
                 }
 
-                // pre write mappedFile
+                // MappedFile预热，默认不预热
                 if (mappedFile.getFileSize() >= this.messageStore.getMessageStoreConfig()
                     .getMapedFileSizeCommitLog()
                     &&

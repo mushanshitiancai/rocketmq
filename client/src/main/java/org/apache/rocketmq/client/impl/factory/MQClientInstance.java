@@ -283,7 +283,7 @@ public class MQClientInstance {
             }
         }, 10, this.clientConfig.getPollNameServerInterval(), TimeUnit.MILLISECONDS);
 
-        // 默认每30s发送心跳到Broker
+        // 默认每30s清理所有已下线Broker，发送心跳到所有Broker
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
 
             @Override
@@ -534,6 +534,9 @@ public class MQClientInstance {
         return false;
     }
 
+    /**
+     * 向所有Broker发送心跳，如果是生产者，只向Master Broker发送心跳
+     */
     private void sendHeartbeatToAllBroker() {
         final HeartbeatData heartbeatData = this.prepareHeartbeatData();
         final boolean producerEmpty = heartbeatData.getProducerDataSet().isEmpty();
@@ -555,6 +558,7 @@ public class MQClientInstance {
                         Long id = entry1.getKey();
                         String addr = entry1.getValue();
                         if (addr != null) {
+                            // 如果这个Client只是生产者，则只向Master Broker发送心跳
                             if (consumerEmpty) {
                                 if (id != MixAll.MASTER_ID)
                                     continue;
